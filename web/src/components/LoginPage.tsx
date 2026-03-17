@@ -33,7 +33,7 @@ export function LoginPage() {
       </div>
 
       {/* Card */}
-      <div className="relative w-full max-w-[400px] rounded-xl border border-slate-800 bg-slate-900 p-8 shadow-2xl">
+      <div className="relative w-full max-w-[400px] rounded-xl border border-slate-800/20 bg-slate-900/60 p-8 shadow-2xl">
         {/* Header */}
         <div className="mb-8 text-center">
           <div className="mx-auto mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-sm font-bold tracking-wider text-white">
@@ -63,7 +63,7 @@ export function LoginPage() {
                 onChange={e => setEmail(e.target.value)}
                 required
                 autoComplete="email"
-                className="h-10 w-full rounded-lg border border-slate-700 bg-slate-800 pl-10 pr-3 text-sm text-white placeholder:text-slate-500 transition-colors duration-150 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                className="h-10 w-full rounded-lg border border-slate-700/50 bg-slate-800 pl-10 pr-3 text-sm text-white placeholder:text-slate-500 transition-colors duration-150 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
               />
             </div>
           </div>
@@ -82,7 +82,7 @@ export function LoginPage() {
                 onChange={e => setPassword(e.target.value)}
                 required
                 autoComplete="current-password"
-                className="h-10 w-full rounded-lg border border-slate-700 bg-slate-800 pl-10 pr-3 text-sm text-white placeholder:text-slate-500 transition-colors duration-150 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                className="h-10 w-full rounded-lg border border-slate-700/50 bg-slate-800 pl-10 pr-3 text-sm text-white placeholder:text-slate-500 transition-colors duration-150 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
               />
             </div>
           </div>

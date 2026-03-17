@@ -106,7 +106,7 @@ export function DocumentsPage() {
   return (
     <div className="space-y-5">
       {/* Source Tabs */}
-      <div className="flex items-center gap-1 rounded-lg bg-slate-900 p-1 w-fit border border-slate-800">
+      <div className="flex items-center gap-1 rounded-lg bg-slate-900/50 p-1 w-fit">
         {tabs.map((tab) => {
           const active = activeTab === tab.key
           return (
@@ -134,12 +134,12 @@ export function DocumentsPage() {
           placeholder="Поиск по названию..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="h-9 w-full rounded-lg border border-slate-700 bg-slate-800 pl-9 pr-3 text-sm text-slate-200 placeholder:text-slate-500 outline-none transition-colors focus:border-slate-600 focus:ring-1 focus:ring-slate-600"
+          className="h-9 w-full rounded-lg border border-slate-700/50 bg-slate-800 pl-9 pr-3 text-sm text-slate-200 placeholder:text-slate-500 outline-none transition-colors focus:border-slate-600 focus:ring-1 focus:ring-slate-600"
         />
       </div>
 
       {/* Table */}
-      <div className="overflow-hidden rounded-xl border border-slate-800 bg-slate-900">
+      <div className="overflow-hidden rounded-xl border border-slate-800/30 bg-slate-900/50">
         <table className="w-full">
           <thead>
             <tr className="bg-slate-800/50">

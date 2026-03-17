@@ -67,10 +67,10 @@ export function DocumentSheet({ document: doc, onClose }: DocumentSheetProps) {
       {/* Panel */}
       <div
         ref={panelRef}
-        className="relative z-10 flex h-full w-full max-w-2xl flex-col border-l border-slate-800 bg-slate-900 shadow-2xl animate-in slide-in-from-right duration-300"
+        className="relative z-10 flex h-full w-full max-w-2xl flex-col border-l border-slate-800/30 bg-slate-900 shadow-2xl animate-in slide-in-from-right duration-300"
       >
         {/* Header */}
-        <div className="flex items-start gap-3 border-b border-slate-800 px-6 py-5">
+        <div className="flex items-start gap-3 border-b border-slate-800/30 px-6 py-5">
           <div className="min-w-0 flex-1">
             <div className="mb-2">
               <SourceBadge source={doc.source} />
@@ -114,7 +114,7 @@ export function DocumentSheet({ document: doc, onClose }: DocumentSheetProps) {
                 <ChevronDown className="h-3.5 w-3.5 transition-transform duration-200 group-open:rotate-180" />
                 Метаданные
               </summary>
-              <pre className="mt-3 rounded-lg bg-slate-950 border border-slate-800 p-4 text-xs text-slate-500 overflow-x-auto">
+              <pre className="mt-3 rounded-lg bg-slate-950 border border-slate-800/30 p-4 text-xs text-slate-500 overflow-x-auto">
                 {JSON.stringify(doc.metadata, null, 2)}
               </pre>
             </details>

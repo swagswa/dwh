@@ -60,7 +60,7 @@ function highlightText(text: string, query: string) {
 
 function SkeletonCard() {
   return (
-    <div className="rounded-lg border border-slate-800 bg-slate-900 p-4 animate-pulse">
+    <div className="rounded-lg bg-slate-900/50 p-4 animate-pulse">
       <div className="flex items-center justify-between mb-3">
         <div className="h-5 w-20 rounded-md bg-slate-800" />
         <div className="h-4 w-16 rounded bg-slate-800" />
@@ -154,7 +154,7 @@ export function SearchPage() {
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
               placeholder="Поиск по документам..."
-              className="w-full rounded-xl border border-slate-800 bg-slate-900 p-4 pl-12 text-lg text-slate-100 placeholder:text-slate-500 outline-none transition-all duration-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/50"
+              className="w-full rounded-xl border border-slate-700/50 bg-slate-900/50 p-4 pl-12 text-lg text-slate-100 placeholder:text-slate-500 outline-none transition-all duration-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/50"
             />
           </div>
         </div>
@@ -209,7 +209,7 @@ export function SearchPage() {
                 <button
                   key={doc.id}
                   onClick={() => setSelectedDoc(doc)}
-                  className="w-full cursor-pointer rounded-lg border border-slate-800 bg-slate-900 p-4 text-left transition-colors duration-150 hover:border-slate-700"
+                  className="w-full cursor-pointer rounded-lg bg-slate-900/50 p-4 text-left transition-colors duration-150 hover:bg-slate-800/50"
                 >
                   <div className="flex items-center justify-between mb-1.5">
                     <SourceBadge source={doc.source} />
