@@ -1,0 +1,35 @@
+import { Search } from 'lucide-react'
+import type { PageKey } from './Sidebar'
+
+const pageTitles: Record<PageKey, string> = {
+  dashboard: 'Обзор',
+  search: 'Поиск',
+  documents: 'Документы',
+  settings: 'Настройки',
+}
+
+interface TopBarProps {
+  currentPage: PageKey
+  onNavigate: (page: PageKey) => void
+}
+
+export function TopBar({ currentPage, onNavigate }: TopBarProps) {
+  return (
+    <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-slate-800 bg-slate-950/80 px-6 backdrop-blur-md">
+      <h1 className="text-sm font-semibold text-slate-100">
+        {pageTitles[currentPage]}
+      </h1>
+
+      <button
+        onClick={() => onNavigate('search')}
+        className="flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-900 px-3 py-1.5 text-sm text-slate-500 transition-colors duration-150 hover:border-slate-700 hover:text-slate-400"
+      >
+        <Search className="h-3.5 w-3.5" />
+        <span>Поиск...</span>
+        <kbd className="ml-4 rounded border border-slate-700 bg-slate-800 px-1.5 py-0.5 text-[10px] font-medium text-slate-400">
+          /
+        </kbd>
+      </button>
+    </header>
+  )
+}

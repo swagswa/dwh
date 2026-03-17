@@ -3,11 +3,27 @@ import type { Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import { edgeFetch } from '@/lib/api'
 import { LoginPage } from '@/components/LoginPage'
-import { Dashboard } from '@/components/Dashboard'
+import { AppLayout } from '@/components/AppLayout'
+import type { PageKey } from '@/components/Sidebar'
+import { LayoutDashboard, Search, FileText, Settings } from 'lucide-react'
+import { EmptyState } from '@/components/EmptyState'
+
+function PlaceholderPage({ page }: { page: PageKey }) {
+  const config: Record<PageKey, { icon: typeof LayoutDashboard; title: string; desc: string }> = {
+    dashboard: { icon: LayoutDashboard, title: 'Обзор', desc: 'Статистика и последние документы появятся здесь' },
+    search: { icon: Search, title: 'Поиск', desc: 'Полнотекстовый поиск по всем источникам' },
+    documents: { icon: FileText, title: 'Документы', desc: 'Все загруженные и синхронизированные документы' },
+    settings: { icon: Settings, title: 'Настройки', desc: 'Управление источниками и интеграциями' },
+  }
+
+  const { icon, title, desc } = config[page]
+  return <EmptyState icon={icon} title={title} description={desc} />
+}
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
+  const [currentPage, setCurrentPage] = useState<PageKey>('dashboard')
 
   useEffect(() => {
     // Handle Gmail OAuth callback: ?code= in URL
@@ -18,9 +34,8 @@ export default function App() {
         try {
           await edgeFetch(`auth-gmail?code=${encodeURIComponent(code)}`)
         } catch {
-          // silently ignore — user may not be authed yet
+          // silently ignore -- user may not be authed yet
         }
-        // Clean URL
         const clean = window.location.pathname
         window.history.replaceState({}, '', clean)
       })()
@@ -42,9 +57,9 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="flex items-center gap-2 text-muted-foreground">
-          <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+      <div className="flex min-h-screen items-center justify-center bg-slate-950">
+        <div className="flex items-center gap-2 text-slate-400">
+          <div className="h-5 w-5 border-2 border-slate-600 border-t-slate-300 rounded-full animate-spin" />
           <span className="text-sm">Загрузка...</span>
         </div>
       </div>
@@ -55,5 +70,14 @@ export default function App() {
     return <LoginPage />
   }
 
-  return <Dashboard session={session} />
+  return (
+    <AppLayout
+      currentPage={currentPage}
+      onNavigate={setCurrentPage}
+      userEmail={session.user.email}
+      onLogout={() => supabase.auth.signOut()}
+    >
+      <PlaceholderPage page={currentPage} />
+    </AppLayout>
+  )
 }
