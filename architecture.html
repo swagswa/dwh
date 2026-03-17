@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Архитектура DWH - 2 этапа</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #0a0a0f;
+            color: #e0e0e0;
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+            color: #fff;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #888;
+            font-size: 0.95rem;
+            margin-bottom: 48px;
+        }
+
+        .stages {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+        }
+
+        @media (max-width: 800px) {
+            .stages {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .stage {
+            background: #12121a;
+            border: 1px solid #1e1e2e;
+            border-radius: 16px;
+            padding: 32px;
+            position: relative;
+        }
+
+        .stage-header {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 28px;
+        }
+
+        .stage-number {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1.1rem;
+            flex-shrink: 0;
+        }
+
+        .stage-1 .stage-number {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: #fff;
+        }
+
+        .stage-2 .stage-number {
+            background: linear-gradient(135deg, #10b981, #06d6a0);
+            color: #fff;
+        }
+
+        .stage-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .stage-badge {
+            font-size: 0.75rem;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-weight: 500;
+            margin-left: auto;
+        }
+
+        .stage-1 .stage-badge {
+            background: rgba(99, 102, 241, 0.15);
+            color: #a5b4fc;
+            border: 1px solid rgba(99, 102, 241, 0.3);
+        }
+
+        .stage-2 .stage-badge {
+            background: rgba(16, 185, 129, 0.15);
+            color: #6ee7b7;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        /* Flow layout */
+        .flow {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .sources, .outputs {
+            flex: 1;
+        }
+
+        .source-item, .output-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            border-radius: 10px;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+            transition: transform 0.2s;
+        }
+
+        .source-item:hover, .output-item:hover {
+            transform: translateX(4px);
+        }
+
+        .source-item {
+            background: rgba(99, 102, 241, 0.08);
+            border: 1px solid rgba(99, 102, 241, 0.15);
+        }
+
+        .output-item {
+            background: rgba(16, 185, 129, 0.08);
+            border: 1px solid rgba(16, 185, 129, 0.15);
+        }
+
+        .source-item .icon, .output-item .icon {
+            font-size: 1.1rem;
+            width: 24px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        /* Arrows column */
+        .arrows {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+            width: 40px;
+        }
+
+        .arrow-right {
+            color: #6366f1;
+            font-size: 1.2rem;
+            animation: pulse-right 2s infinite;
+        }
+
+        .arrow-bi {
+            color: #10b981;
+            font-size: 1.1rem;
+            animation: pulse-bi 2s infinite;
+        }
+
+        .arrow-out {
+            color: #f59e0b;
+            font-size: 1.1rem;
+            animation: pulse-right 2s infinite;
+        }
+
+        @keyframes pulse-right {
+            0%, 100% { opacity: 0.5; transform: translateX(0); }
+            50% { opacity: 1; transform: translateX(3px); }
+        }
+
+        @keyframes pulse-bi {
+            0%, 100% { opacity: 0.5; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.1); }
+        }
+
+        /* DWH center node */
+        .dwh-node {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.95rem;
+            flex-shrink: 0;
+            position: relative;
+        }
+
+        .stage-1 .dwh-node {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            box-shadow: 0 0 30px rgba(99, 102, 241, 0.3);
+            color: #fff;
+        }
+
+        .stage-2 .dwh-node {
+            background: linear-gradient(135deg, #10b981, #06d6a0);
+            box-shadow: 0 0 30px rgba(16, 185, 129, 0.3);
+            color: #fff;
+        }
+
+        .dwh-node::after {
+            content: '';
+            position: absolute;
+            width: 88px;
+            height: 88px;
+            border-radius: 50%;
+            border: 1px solid rgba(255,255,255,0.08);
+            animation: ring-pulse 3s infinite;
+        }
+
+        @keyframes ring-pulse {
+            0%, 100% { transform: scale(1); opacity: 0.3; }
+            50% { transform: scale(1.1); opacity: 0.6; }
+        }
+
+        /* Stage 2 specific */
+        .output-group {
+            margin-bottom: 16px;
+        }
+
+        .output-group-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: #666;
+            margin-bottom: 8px;
+            padding-left: 14px;
+        }
+
+        .output-item.bidirectional {
+            border-color: rgba(16, 185, 129, 0.25);
+        }
+
+        .output-item.one-way {
+            background: rgba(245, 158, 11, 0.08);
+            border-color: rgba(245, 158, 11, 0.15);
+        }
+
+        .direction-icon {
+            margin-left: auto;
+            font-size: 0.75rem;
+            opacity: 0.6;
+        }
+
+        /* Bottom legend */
+        .legend {
+            display: flex;
+            justify-content: center;
+            gap: 32px;
+            margin-top: 40px;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.8rem;
+            color: #888;
+        }
+
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .legend-dot.purple { background: #6366f1; }
+        .legend-dot.green { background: #10b981; }
+        .legend-dot.amber { background: #f59e0b; }
+
+        /* Tech note */
+        .tech-note {
+            text-align: center;
+            margin-top: 32px;
+            padding: 16px 24px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid #1e1e2e;
+            border-radius: 10px;
+            font-size: 0.8rem;
+            color: #666;
+        }
+
+        .goals {
+            text-align: center;
+            margin-top: 40px;
+            padding: 20px 24px;
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.06), rgba(239, 68, 68, 0.06));
+            border: 1px solid rgba(245, 158, 11, 0.2);
+            border-radius: 12px;
+        }
+
+        .goals-title {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #f59e0b;
+            margin-bottom: 14px;
+            font-weight: 600;
+        }
+
+        .goals-list {
+            display: flex;
+            justify-content: center;
+            gap: 32px;
+            flex-wrap: wrap;
+        }
+
+        .goal-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.05rem;
+            font-weight: 500;
+            color: #fff;
+        }
+
+        .goal-icon {
+            font-size: 1.2rem;
+        }
+
+        .tech-note strong {
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Архитектура DWH</h1>
+        <p class="subtitle">Корпоративное хранилище знаний - 2 этапа внедрения</p>
+
+        <div class="stages">
+            <!-- ЭТАП 1 -->
+            <div class="stage stage-1">
+                <div class="stage-header">
+                    <div class="stage-number">1</div>
+                    <div class="stage-title">Экспорт данных</div>
+                    <span class="stage-badge">1 раз в день</span>
+                </div>
+
+                <div class="flow">
+                    <div class="sources">
+                        <div class="source-item">
+                            <span class="icon">🤖</span>
+                            <span>ChatGPT</span>
+                        </div>
+                        <div class="source-item">
+                            <span class="icon">📧</span>
+                            <span>Gmail</span>
+                        </div>
+                        <div class="source-item">
+                            <span class="icon">💬</span>
+                            <span>ТГ каналы</span>
+                        </div>
+                        <div class="source-item">
+                            <span class="icon">🌐</span>
+                            <span>Сайты</span>
+                        </div>
+                        <div class="source-item">
+                            <span class="icon">📄</span>
+                            <span>Оффлайн доки</span>
+                        </div>
+                    </div>
+
+                    <div class="arrows">
+                        <span class="arrow-right">→</span>
+                        <span class="arrow-right">→</span>
+                        <span class="arrow-right">→</span>
+                        <span class="arrow-right">→</span>
+                        <span class="arrow-right">→</span>
+                    </div>
+
+                    <div class="dwh-node">DWH</div>
+                </div>
+            </div>
+
+            <!-- ЭТАП 2 -->
+            <div class="stage stage-2">
+                <div class="stage-header">
+                    <div class="stage-number">2</div>
+                    <div class="stage-title">2-сторонний обмен</div>
+                    <span class="stage-badge">постоянно</span>
+                </div>
+
+                <div class="flow">
+                    <div class="dwh-node">DWH</div>
+
+                    <div class="arrows">
+                        <span class="arrow-bi">⇄</span>
+                        <span class="arrow-bi">⇄</span>
+                        <span class="arrow-bi">⇄</span>
+                        <span class="arrow-out" style="margin-top: 8px">→</span>
+                        <span class="arrow-out">→</span>
+                    </div>
+
+                    <div class="outputs">
+                        <div class="output-group">
+                            <div class="output-group-label">двусторонний обмен</div>
+                            <div class="output-item bidirectional">
+                                <span class="icon">🏭</span>
+                                <span>Завод BusDev</span>
+                                <span class="direction-icon">⇄</span>
+                            </div>
+                            <div class="output-item bidirectional">
+                                <span class="icon">🏭</span>
+                                <span>Завод Консалт</span>
+                                <span class="direction-icon">⇄</span>
+                            </div>
+                            <div class="output-item bidirectional">
+                                <span class="icon">🏭</span>
+                                <span>Каждый завод</span>
+                                <span class="direction-icon">⇄</span>
+                            </div>
+                        </div>
+
+                        <div class="output-group">
+                            <div class="output-group-label">выходные каналы</div>
+                            <div class="output-item one-way">
+                                <span class="icon">🌐</span>
+                                <span>Стата сайтов</span>
+                                <span class="direction-icon">→</span>
+                            </div>
+                            <div class="output-item one-way">
+                                <span class="icon">🤖</span>
+                                <span>ИИ ассистенты</span>
+                                <span class="direction-icon">→</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-dot purple"></div>
+                <span>Экспорт (1 раз в день)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-dot green"></div>
+                <span>Двусторонняя синхронизация</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-dot amber"></div>
+                <span>Односторонняя выдача</span>
+            </div>
+        </div>
+
+        <div class="goals">
+            <div class="goals-title">Цели</div>
+            <div class="goals-list">
+                <div class="goal-item">
+                    <span class="goal-icon">🎯</span>
+                    <span>Лиды от консалтинга</span>
+                </div>
+                <div class="goal-item">
+                    <span class="goal-icon">🚀</span>
+                    <span>Новые бизнес-проекты</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="tech-note">
+            <strong>Стек:</strong> Supabase (PostgreSQL + pgvector) &nbsp;|&nbsp;
+            Embeddings: OpenAI text-embedding-3-small &nbsp;|&nbsp;
+            Семантический поиск по всем источникам
+        </div>
+    </div>
+</body>
+</html>

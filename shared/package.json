@@ -1,0 +1,5 @@
+{
+  "name": "dwh-shared",
+  "type": "module",
+  "main": "types.ts"
+}

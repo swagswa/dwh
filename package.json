@@ -1,0 +1,6 @@
+{
+  "name": "dwh",
+  "private": true,
+  "type": "module",
+  "workspaces": ["web", "shared"]
+}
