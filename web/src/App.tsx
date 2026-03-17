@@ -71,8 +71,10 @@ export default function App() {
         <DashboardPage />
       ) : currentPage === 'search' ? (
         <SearchPage />
+      ) : currentPage === 'documents' ? (
+        <DocumentsPage />
       ) : (
-        <PlaceholderPage page={currentPage} />
+        <SettingsPage userEmail={session.user.email} onLogout={() => supabase.auth.signOut()} />
       )}
     </AppLayout>
   )
