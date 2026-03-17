@@ -6,19 +6,9 @@ import { LoginPage } from '@/components/LoginPage'
 import { AppLayout } from '@/components/AppLayout'
 import { DashboardPage } from '@/components/DashboardPage'
 import type { PageKey } from '@/components/Sidebar'
-import { Search, FileText, Settings } from 'lucide-react'
-import { EmptyState } from '@/components/EmptyState'
-
-function PlaceholderPage({ page }: { page: Exclude<PageKey, 'dashboard'> }) {
-  const config: Record<Exclude<PageKey, 'dashboard'>, { icon: typeof Search; title: string; desc: string }> = {
-    search: { icon: Search, title: 'Поиск', desc: 'Полнотекстовый поиск по всем источникам' },
-    documents: { icon: FileText, title: 'Документы', desc: 'Все загруженные и синхронизированные документы' },
-    settings: { icon: Settings, title: 'Настройки', desc: 'Управление источниками и интеграциями' },
-  }
-
-  const { icon, title, desc } = config[page]
-  return <EmptyState icon={icon} title={title} description={desc} />
-}
+import { SearchPage } from '@/components/SearchPage'
+import { DocumentsPage } from '@/components/DocumentsPage'
+import { SettingsPage } from '@/components/SettingsPage'
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null)
@@ -79,6 +69,8 @@ export default function App() {
     >
       {currentPage === 'dashboard' ? (
         <DashboardPage />
+      ) : currentPage === 'search' ? (
+        <SearchPage />
       ) : (
         <PlaceholderPage page={currentPage} />
       )}

@@ -1,0 +1,239 @@
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Search, SearchX } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
+import { sources, type SourceKey } from '@/lib/sources'
+import { SourceBadge } from '@/components/SourceBadge'
+import { EmptyState } from '@/components/EmptyState'
+import { DocumentSheet, type Document } from '@/components/DocumentSheet'
+import { cn } from '@/lib/utils'
+
+type TabKey = 'all' | SourceKey
+
+const tabs: { key: TabKey; label: string }[] = [
+  { key: 'all', label: 'Все' },
+  { key: 'chatgpt', label: 'ChatGPT' },
+  { key: 'gmail', label: 'Gmail' },
+  { key: 'telegram', label: 'Telegram' },
+  { key: 'sites', label: 'Сайты' },
+  { key: 'documents', label: 'Документы' },
+]
+
+function getTabClasses(key: TabKey, active: boolean) {
+  if (!active) {
+    return 'bg-slate-800/50 text-slate-400 hover:bg-slate-800 hover:text-slate-300'
+  }
+  if (key === 'all') {
+    return 'bg-blue-500/15 text-blue-400'
+  }
+  const src = sources[key as SourceKey]
+  // Map source bgClass/textClass to active tab style
+  return `${src.bgClass} ${src.textClass}`
+}
+
+function relativeTime(iso: string) {
+  const diff = Date.now() - new Date(iso).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'только что'
+  if (mins < 60) return `${mins} мин назад`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `${hours} ч назад`
+  const days = Math.floor(hours / 24)
+  if (days < 30) return `${days} дн назад`
+  return new Date(iso).toLocaleDateString('ru-RU')
+}
+
+function highlightText(text: string, query: string) {
+  if (!query.trim()) return text
+  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const re = new RegExp(`(${escaped})`, 'gi')
+  const parts = text.split(re)
+  return parts.map((part, i) =>
+    re.test(part) ? (
+      <mark key={i} className="bg-yellow-500/20 text-yellow-200 rounded-sm px-0.5">
+        {part}
+      </mark>
+    ) : (
+      part
+    ),
+  )
+}
+
+function SkeletonCard() {
+  return (
+    <div className="rounded-lg border border-slate-800 bg-slate-900 p-4 animate-pulse">
+      <div className="flex items-center justify-between mb-3">
+        <div className="h-5 w-20 rounded-md bg-slate-800" />
+        <div className="h-4 w-16 rounded bg-slate-800" />
+      </div>
+      <div className="h-5 w-3/4 rounded bg-slate-800 mb-2" />
+      <div className="h-4 w-full rounded bg-slate-800" />
+      <div className="h-4 w-2/3 rounded bg-slate-800 mt-1" />
+    </div>
+  )
+}
+
+export function SearchPage() {
+  const [searchText, setSearchText] = useState('')
+  const [debouncedText, setDebouncedText] = useState('')
+  const [activeTab, setActiveTab] = useState<TabKey>('all')
+  const [results, setResults] = useState<Document[]>([])
+  const [loading, setLoading] = useState(false)
+  const [hasSearched, setHasSearched] = useState(false)
+  const [selectedDoc, setSelectedDoc] = useState<Document | null>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const abortRef = useRef<AbortController | null>(null)
+
+  // Debounce
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedText(searchText), 300)
+    return () => clearTimeout(timer)
+  }, [searchText])
+
+  // Fetch
+  const fetchResults = useCallback(async (text: string, source: TabKey) => {
+    // Cancel previous request
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
+
+    setLoading(true)
+    setHasSearched(true)
+
+    let query = supabase
+      .from('documents')
+      .select('id, source, source_id, title, content, metadata, created_at, updated_at')
+      .order('updated_at', { ascending: false })
+      .limit(50)
+
+    if (text) {
+      query = query.or(`title.ilike.%${text}%,content.ilike.%${text}%`)
+    }
+    if (source !== 'all') {
+      query = query.eq('source', source)
+    }
+
+    const { data, error } = await query
+
+    // If aborted, don't update state
+    if (controller.signal.aborted) return
+
+    if (!error && data) {
+      setResults(data as Document[])
+    } else {
+      setResults([])
+    }
+    setLoading(false)
+  }, [])
+
+  // Trigger search on debounced text or tab change
+  useEffect(() => {
+    if (!debouncedText && activeTab === 'all') {
+      setHasSearched(false)
+      setResults([])
+      setLoading(false)
+      return
+    }
+    fetchResults(debouncedText, activeTab)
+  }, [debouncedText, activeTab, fetchResults])
+
+  // Auto-focus input
+  useEffect(() => {
+    inputRef.current?.focus()
+  }, [])
+
+  return (
+    <>
+      <div className="mx-auto w-full max-w-4xl px-4 py-8">
+        {/* Search bar */}
+        <div className="mx-auto w-full max-w-2xl">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" />
+            <input
+              ref={inputRef}
+              type="text"
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              placeholder="Поиск по документам..."
+              className="w-full rounded-xl border border-slate-800 bg-slate-900 p-4 pl-12 text-lg text-slate-100 placeholder:text-slate-500 outline-none transition-all duration-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/50"
+            />
+          </div>
+        </div>
+
+        {/* Source tabs */}
+        <div className="mx-auto mt-5 flex w-full max-w-2xl flex-wrap gap-2">
+          {tabs.map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setActiveTab(key)}
+              className={cn(
+                'rounded-full px-4 py-1.5 text-sm font-medium transition-colors duration-150',
+                getTabClasses(key, activeTab === key),
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Results area */}
+        <div className="mt-8 space-y-3">
+          {loading ? (
+            <>
+              <SkeletonCard />
+              <SkeletonCard />
+              <SkeletonCard />
+            </>
+          ) : !hasSearched ? (
+            <EmptyState
+              icon={Search}
+              title="Поиск по документам"
+              description="Введите запрос для поиска по всем источникам"
+              className="py-24"
+            />
+          ) : results.length === 0 ? (
+            <EmptyState
+              icon={SearchX}
+              title="Ничего не найдено"
+              description="Попробуйте изменить запрос или выбрать другой источник"
+              className="py-24"
+            />
+          ) : (
+            results.map((doc) => {
+              const snippet = doc.content
+                ? doc.content.length > 150
+                  ? doc.content.slice(0, 150) + '...'
+                  : doc.content
+                : ''
+
+              return (
+                <button
+                  key={doc.id}
+                  onClick={() => setSelectedDoc(doc)}
+                  className="w-full cursor-pointer rounded-lg border border-slate-800 bg-slate-900 p-4 text-left transition-colors duration-150 hover:border-slate-700"
+                >
+                  <div className="flex items-center justify-between mb-1.5">
+                    <SourceBadge source={doc.source} />
+                    <span className="text-sm text-slate-500">
+                      {relativeTime(doc.updated_at)}
+                    </span>
+                  </div>
+                  <h3 className="text-base font-medium text-slate-100">
+                    {debouncedText ? highlightText(doc.title, debouncedText) : doc.title}
+                  </h3>
+                  {snippet && (
+                    <p className="mt-1 text-sm text-slate-400 line-clamp-2">
+                      {debouncedText ? highlightText(snippet, debouncedText) : snippet}
+                    </p>
+                  )}
+                </button>
+              )
+            })
+          )}
+        </div>
+      </div>
+
+      {/* Document sheet */}
+      <DocumentSheet document={selectedDoc} onClose={() => setSelectedDoc(null)} />
+    </>
+  )
+}
