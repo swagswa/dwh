@@ -4,13 +4,13 @@ import { supabase } from '@/lib/supabase'
 import { edgeFetch } from '@/lib/api'
 import { LoginPage } from '@/components/LoginPage'
 import { AppLayout } from '@/components/AppLayout'
+import { DashboardPage } from '@/components/DashboardPage'
 import type { PageKey } from '@/components/Sidebar'
-import { LayoutDashboard, Search, FileText, Settings } from 'lucide-react'
+import { Search, FileText, Settings } from 'lucide-react'
 import { EmptyState } from '@/components/EmptyState'
 
-function PlaceholderPage({ page }: { page: PageKey }) {
-  const config: Record<PageKey, { icon: typeof LayoutDashboard; title: string; desc: string }> = {
-    dashboard: { icon: LayoutDashboard, title: 'Обзор', desc: 'Статистика и последние документы появятся здесь' },
+function PlaceholderPage({ page }: { page: Exclude<PageKey, 'dashboard'> }) {
+  const config: Record<Exclude<PageKey, 'dashboard'>, { icon: typeof Search; title: string; desc: string }> = {
     search: { icon: Search, title: 'Поиск', desc: 'Полнотекстовый поиск по всем источникам' },
     documents: { icon: FileText, title: 'Документы', desc: 'Все загруженные и синхронизированные документы' },
     settings: { icon: Settings, title: 'Настройки', desc: 'Управление источниками и интеграциями' },
@@ -77,7 +77,11 @@ export default function App() {
       userEmail={session.user.email}
       onLogout={() => supabase.auth.signOut()}
     >
-      <PlaceholderPage page={currentPage} />
+      {currentPage === 'dashboard' ? (
+        <DashboardPage />
+      ) : (
+        <PlaceholderPage page={currentPage} />
+      )}
     </AppLayout>
   )
 }
