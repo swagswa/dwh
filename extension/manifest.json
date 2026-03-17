@@ -1,0 +1,10 @@
+{
+  "manifest_version": 3,
+  "name": "DWH ChatGPT Sync",
+  "version": "1.0",
+  "description": "Sync ChatGPT conversations to DWH",
+  "permissions": ["storage", "cookies"],
+  "host_permissions": ["https://chatgpt.com/*"],
+  "action": { "default_popup": "popup.html" },
+  "background": { "service_worker": "background.js" }
+}

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { width: 340px; padding: 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; color: #1e293b; }
+    h2 { font-size: 18px; margin-bottom: 16px; }
+    .form-group { margin-bottom: 12px; }
+    label { display: block; font-size: 13px; color: #64748b; margin-bottom: 4px; }
+    input { width: 100%; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; outline: none; }
+    input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+    button { width: 100%; padding: 10px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+    .btn-primary { background: #3b82f6; color: white; }
+    .btn-primary:hover { background: #2563eb; }
+    .btn-primary:disabled { background: #93c5fd; cursor: not-allowed; }
+    .btn-secondary { background: #e2e8f0; color: #475569; margin-top: 12px; }
+    .btn-secondary:hover { background: #cbd5e1; }
+    .status { margin-top: 12px; padding: 10px; border-radius: 8px; font-size: 13px; line-height: 1.4; }
+    .status.info { background: #eff6ff; color: #1e40af; }
+    .status.success { background: #f0fdf4; color: #166534; }
+    .status.error { background: #fef2f2; color: #991b1b; }
+    .progress-bar { width: 100%; height: 6px; background: #e2e8f0; border-radius: 3px; margin-top: 8px; overflow: hidden; }
+    .progress-fill { height: 100%; background: #3b82f6; border-radius: 3px; transition: width 0.3s; }
+    .hidden { display: none; }
+    .divider { border-top: 1px solid #e2e8f0; margin: 16px 0; }
+  </style>
+</head>
+<body>
+  <div id="login-section">
+    <h2>DWH Login</h2>
+    <div class="form-group">
+      <label>Email</label>
+      <input id="email" type="email" placeholder="your@email.com">
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input id="password" type="password" placeholder="Password">
+    </div>
+    <button id="login-btn" class="btn-primary">Войти</button>
+    <div id="login-error" class="status error hidden"></div>
+  </div>
+
+  <div id="sync-section" class="hidden">
+    <h2>ChatGPT Sync</h2>
+    <button id="sync-btn" class="btn-primary">Синхронизировать</button>
+    <div id="sync-status" class="status info hidden"></div>
+    <div id="progress-container" class="hidden">
+      <div class="progress-bar"><div id="progress-fill" class="progress-fill" style="width:0%"></div></div>
+    </div>
+    <div class="divider"></div>
+    <button id="logout-btn" class="btn-secondary">Выйти</button>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
