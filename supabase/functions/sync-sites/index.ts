@@ -51,8 +51,12 @@ Deno.serve(async (req) => {
         // Jina returns markdown with "Title: ...\n" header
         const titleMatch = md.match(/^Title:\s*(.+)$/m)
         title = titleMatch?.[1]?.trim() || ''
-        // Remove Jina metadata lines (Title:, URL:, etc.) from content
-        content = md.replace(/^(Title|URL|Markdown Content):\s*.+$/gm, '').trim()
+        // Remove Jina metadata lines, images, and clean up
+        content = md
+          .replace(/^(Title|URL|Markdown Content):\s*.+$/gm, '')
+          .replace(/!\[([^\]]*)\]\([^)]+\)/g, '')   // remove markdown images
+          .replace(/\n{3,}/g, '\n\n')                // collapse excessive newlines
+          .trim()
       }
 
       // Fallback: direct fetch + cheerio (for when Jina is down)
