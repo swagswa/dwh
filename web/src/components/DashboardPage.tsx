@@ -3,6 +3,7 @@ import { RefreshCw, Database, Layers, Clock } from 'lucide-react'
 import { sources, type SourceKey } from '@/lib/sources'
 import { edgeFetch } from '@/lib/api'
 import { cn } from '@/lib/utils'
+import { emitDataChange, onDataChange } from '@/lib/events'
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -241,6 +242,12 @@ export function DashboardPage() {
     void fetchStats()
   }, [fetchStats])
 
+  useEffect(() => {
+    return onDataChange(() => {
+      void fetchStats()
+    })
+  }, [])
+
   const handleSync = async (source: SourceKey) => {
     setSyncingSource(source)
     try {
@@ -270,6 +277,7 @@ export function DashboardPage() {
         await edgeFetch(`sync-${source}`, { method: 'POST' })
       }
       await fetchStats()
+      emitDataChange()
     } catch {
       // fail silently
     } finally {

@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 import { edgeFetch } from '@/lib/api'
 import { parseFile } from '@/lib/file-parser'
+import { emitDataChange } from '@/lib/events'
 
 /* -------------------------------------------------------------------------- */
 /*  Shared card wrapper                                                        */
@@ -141,10 +142,12 @@ function SitesSection() {
     async (nextUrls: string[]) => {
       setSaving(true)
       try {
+        const { data: { user } } = await supabase.auth.getUser()
         await supabase.from('credentials').upsert({
+          user_id: user!.id,
           id: 'sites',
           metadata: { urls: nextUrls },
-        })
+        }, { onConflict: 'user_id,id' })
         setUrls(nextUrls)
       } catch (err) {
         console.error('Save sites error:', err)
@@ -257,6 +260,7 @@ function FileUploadSection() {
       setFiles((prev) =>
         prev.map((f) => (f.name === file.name ? { ...f, status: 'success' as const } : f)),
       )
+      emitDataChange()
     } catch (err) {
       setFiles((prev) =>
         prev.map((f) =>

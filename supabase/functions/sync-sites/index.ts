@@ -19,7 +19,7 @@ Deno.serve(async (req) => {
   let urls: string[] = body.urls || []
   if (urls.length === 0) {
     const { data: cred } = await supabase
-      .from('credentials').select('metadata').eq('id', 'sites').single()
+      .from('credentials').select('metadata').eq('id', 'sites').eq('user_id', auth.user!.id).single()
     urls = (cred?.metadata as any)?.urls || []
   }
 
@@ -30,6 +30,7 @@ Deno.serve(async (req) => {
     .from('documents')
     .select('source_id, content_hash')
     .eq('source', 'sites')
+    .eq('user_id', auth.user!.id)
   const hashMap = new Map(existing?.map((d: any) => [d.source_id, d.content_hash]) ?? [])
 
   const turndown = new TurndownService()
@@ -95,6 +96,7 @@ Deno.serve(async (req) => {
       }
 
       await supabase.from('documents').upsert({
+        user_id: auth.user!.id,
         source: 'sites',
         source_id: url,
         title,
@@ -102,7 +104,7 @@ Deno.serve(async (req) => {
         content_hash: contentHash,
         metadata: { url, page_title: title },
         updated_at: new Date().toISOString(),
-      }, { onConflict: 'source,source_id' })
+      }, { onConflict: 'user_id,source,source_id' })
 
       synced++
     } catch (e) {
@@ -112,6 +114,7 @@ Deno.serve(async (req) => {
 
   // Log sync run
   await supabase.from('sync_runs').insert({
+    user_id: auth.user!.id,
     source: 'sites',
     status: 'completed',
     finished_at: new Date().toISOString(),

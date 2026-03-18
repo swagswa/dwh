@@ -6,6 +6,7 @@ import { type SourceKey } from '@/lib/sources'
 import { SourceBadge } from '@/components/SourceBadge'
 import { EmptyState } from '@/components/EmptyState'
 import { DocumentSheet, type Document } from '@/components/DocumentSheet'
+import { onDataChange } from '@/lib/events'
 
 const PAGE_SIZE = 50
 
@@ -153,6 +154,12 @@ export function DocumentsPage() {
 
   useEffect(() => {
     void fetchDocuments()
+  }, [fetchDocuments])
+
+  useEffect(() => {
+    return onDataChange(() => {
+      void fetchDocuments()
+    })
   }, [fetchDocuments])
 
   // Reset page when filter changes

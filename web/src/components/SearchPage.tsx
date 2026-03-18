@@ -6,6 +6,7 @@ import { SourceBadge } from '@/components/SourceBadge'
 import { EmptyState } from '@/components/EmptyState'
 import { DocumentSheet, type Document } from '@/components/DocumentSheet'
 import { cn } from '@/lib/utils'
+import { onDataChange } from '@/lib/events'
 
 type TabKey = 'all' | SourceKey
 
@@ -163,6 +164,15 @@ export function SearchPage() {
     if (!debouncedText && activeTab === 'all') return
     // eslint-disable-next-line react-hooks/set-state-in-effect -- fetchResults is async data fetching, setState in callback is intentional
     fetchResults(debouncedText, activeTab)
+  }, [debouncedText, activeTab, fetchResults])
+
+  // Refresh results when data changes externally (after sync/upload)
+  useEffect(() => {
+    return onDataChange(() => {
+      if (debouncedText || activeTab !== 'all') {
+        void fetchResults(debouncedText, activeTab)
+      }
+    })
   }, [debouncedText, activeTab, fetchResults])
 
   // Auto-focus input

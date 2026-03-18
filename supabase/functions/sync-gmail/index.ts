@@ -18,7 +18,7 @@ Deno.serve(async (req) => {
 
   // 1. Get credentials
   const { data: cred } = await supabase
-    .from('credentials').select('*').eq('id', 'gmail').single()
+    .from('credentials').select('*').eq('id', 'gmail').eq('user_id', auth.user!.id).single()
 
   if (!cred?.access_token) return errorResponse('Gmail not connected', 400)
 
@@ -42,7 +42,7 @@ Deno.serve(async (req) => {
     await supabase.from('credentials').update({
       access_token: accessToken,
       expires_at: new Date(Date.now() + refreshData.expires_in * 1000).toISOString(),
-    }).eq('id', 'gmail')
+    }).eq('id', 'gmail').eq('user_id', auth.user!.id)
   }
 
   const gmailHeaders = { Authorization: `Bearer ${accessToken}` }
@@ -67,6 +67,7 @@ Deno.serve(async (req) => {
     .from('documents')
     .select('source_id, content_hash')
     .eq('source', 'gmail')
+    .eq('user_id', auth.user!.id)
     .in('source_id', messageIds)
   const hashMap = new Map(existing?.map((d: any) => [d.source_id, d.content_hash]) ?? [])
 
@@ -115,6 +116,7 @@ Deno.serve(async (req) => {
       }
 
       toUpsert.push({
+        user_id: auth.user!.id,
         source: 'gmail',
         source_id: msg.id,
         title: subject || '(no subject)',
@@ -133,12 +135,13 @@ Deno.serve(async (req) => {
   if (toUpsert.length) {
     const { error } = await supabase
       .from('documents')
-      .upsert(toUpsert, { onConflict: 'source,source_id' })
+      .upsert(toUpsert, { onConflict: 'user_id,source,source_id' })
     if (error) return errorResponse(error.message, 500)
   }
 
   // 7. Log sync run
   await supabase.from('sync_runs').insert({
+    user_id: auth.user!.id,
     source: 'gmail',
     status: nextPageToken ? 'running' : 'completed',
     finished_at: nextPageToken ? null : new Date().toISOString(),

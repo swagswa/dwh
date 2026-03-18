@@ -41,6 +41,7 @@ Deno.serve(async (req) => {
       .map(b => b.toString(16).padStart(2, '0')).join('')
 
     toUpsert.push({
+      user_id: auth.user!.id,
       source: 'chatgpt',
       source_id: convId,
       title: conv.title || 'Untitled',
@@ -54,12 +55,13 @@ Deno.serve(async (req) => {
   if (toUpsert.length) {
     const { error } = await supabase
       .from('documents')
-      .upsert(toUpsert, { onConflict: 'source,source_id' })
+      .upsert(toUpsert, { onConflict: 'user_id,source,source_id' })
     if (error) return errorResponse(error.message, 500)
   }
 
   // Log sync run
   await supabase.from('sync_runs').insert({
+    user_id: auth.user!.id,
     source: 'chatgpt',
     status: 'completed',
     finished_at: new Date().toISOString(),

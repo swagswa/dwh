@@ -12,7 +12,7 @@ Deno.serve(async (req) => {
   const supabase = getServiceClient()
 
   // All documents in one query, group in JS
-  const { data: docs } = await supabase.from('documents').select('source')
+  const { data: docs } = await supabase.from('documents').select('source').eq('user_id', auth.user!.id)
   const counts: Record<string, number> = {}
   for (const doc of docs || []) {
     counts[doc.source] = (counts[doc.source] || 0) + 1
@@ -22,6 +22,7 @@ Deno.serve(async (req) => {
   const { data: runs } = await supabase
     .from('sync_runs')
     .select('*')
+    .eq('user_id', auth.user!.id)
     .order('started_at', { ascending: false })
 
   const allSources = ['chatgpt', 'gmail', 'telegram', 'sites', 'documents']

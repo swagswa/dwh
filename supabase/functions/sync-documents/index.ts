@@ -57,15 +57,17 @@ Deno.serve(async (req) => {
         const content = contentParts.join('\n\n')
 
         await supabase.from('documents').upsert({
+          user_id: auth.user!.id,
           source: 'telegram',
           source_id: channelName,
           title: channelName,
           content,
           metadata: { channel: channelName, message_count: messages.length, messages },
           updated_at: new Date().toISOString(),
-        }, { onConflict: 'source,source_id' })
+        }, { onConflict: 'user_id,source,source_id' })
 
         await supabase.from('sync_runs').insert({
+          user_id: auth.user!.id,
           source: 'telegram',
           status: 'completed',
           finished_at: new Date().toISOString(),
@@ -83,15 +85,17 @@ Deno.serve(async (req) => {
   const sourceId = `${Date.now()}-${filename}`
 
   await supabase.from('documents').upsert({
+    user_id: auth.user!.id,
     source: 'documents',
     source_id: sourceId,
     title: filename,
     content: text,
     metadata: { filename, format: format || ext, pageCount },
     updated_at: new Date().toISOString(),
-  }, { onConflict: 'source,source_id' })
+  }, { onConflict: 'user_id,source,source_id' })
 
   await supabase.from('sync_runs').insert({
+    user_id: auth.user!.id,
     source: 'documents',
     status: 'completed',
     finished_at: new Date().toISOString(),

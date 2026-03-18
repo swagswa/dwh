@@ -3,6 +3,7 @@ import { Upload, Check, AlertCircle, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { parseFile } from '@/lib/file-parser'
 import { edgeFetch } from '@/lib/api'
+import { emitDataChange } from '@/lib/events'
 
 interface UploadedFile {
   name: string
@@ -57,6 +58,7 @@ export function GlobalDropZone({ children }: { children: React.ReactNode }) {
       setFiles((prev) =>
         prev.map((f) => (f.name === file.name ? { ...f, status: 'success' as const } : f)),
       )
+      emitDataChange()
     } catch (err) {
       setFiles((prev) =>
         prev.map((f) =>

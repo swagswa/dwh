@@ -51,13 +51,14 @@ Deno.serve(async (req) => {
     const supabase = getServiceClient()
     const { error } = await supabase.from('credentials').upsert({
       id: 'gmail',
+      user_id: auth.user!.id,
       access_token: tokens.access_token,
       refresh_token: tokens.refresh_token,
       expires_at: tokens.expires_in
         ? new Date(Date.now() + tokens.expires_in * 1000).toISOString()
         : null,
       metadata: { scope: tokens.scope, token_type: tokens.token_type },
-    }, { onConflict: 'id' })
+    }, { onConflict: 'user_id,id' })
 
     if (error) return errorResponse(error.message, 500)
 

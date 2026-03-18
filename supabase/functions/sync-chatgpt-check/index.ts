@@ -19,6 +19,7 @@ Deno.serve(async (req) => {
     .from('documents')
     .select('source_id, updated_at')
     .eq('source', 'chatgpt')
+    .eq('user_id', auth.user!.id)
 
   const existingMap = new Map(
     existing?.map((d: any) => [d.source_id, new Date(d.updated_at).getTime() / 1000]) ?? []
