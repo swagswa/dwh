@@ -3,11 +3,11 @@
 ## Overall Progress
 
 ```
-██░░░░░░░░░░░░░░░░░░ 0% (0/12 tasks)
+████████████████░░░░ 85% (7/8 tasks done, 1 partial)
 ```
 
 **Started:** 2026-03-17
-**Last updated:** 2026-03-17
+**Last updated:** 2026-03-18
 
 ---
 
@@ -15,59 +15,40 @@
 
 | # | Task | Status | Details |
 |---|------|--------|---------|
-| 1 | Scaffolding + Supabase | ⬚ Not started | Монорепо, миграции, типы |
-| 2 | Server — Base + Auth | ⬚ Not started | Hono + JWT middleware |
-| 3 | Server — ChatGPT sync | ⬚ Not started | POST /sync/chatgpt |
-| 4 | Server — Gmail OAuth + sync | ⬚ Not started | OAuth2 + POST /sync/gmail |
-| 5 | Server — TG + Sites + Docs | ⬚ Not started | 3 скрепера |
-| 6 | Server — Embeddings | ⬚ Not started | OpenAI embeddings |
-| 7 | Chrome Extension | ⬚ Not started | ChatGPT scraper |
-| 8 | Web UI — Scaffolding + Auth | ⬚ Not started | Vite + React + Login |
-| 9 | Web UI — Dashboard + Cards | ⬚ Not started | Карточки источников |
-| 10 | Web UI — Documents Table | ⬚ Not started | Таблица + фильтры + модалка |
-| 11 | Web UI — Settings + Upload | ⬚ Not started | Настройки + загрузка файлов |
-| 12 | Deployment | ⬚ Not started | Railway + Vercel + Extension ZIP |
+| 1 | Scaffolding + Supabase | ✅ Done | Monorepo, migrations, shared types |
+| 2 | Edge Functions base + sync-status | ✅ Done | Auth, CORS helpers, sync-status endpoint |
+| 3 | ChatGPT sync | ✅ Done | sync-chatgpt + sync-chatgpt-check |
+| 4 | Gmail OAuth + sync | ✅ Done | auth-gmail + sync-gmail (cursor/batch) |
+| 5 | Sites + Documents sync | ✅ Done | sync-sites (cheerio+turndown), sync-documents (PDF, DOCX, XLSX, TG JSON) |
+| 6 | Chrome Extension | ✅ Done | Manifest V3, ChatGPT scraper, Supabase auth |
+| 7 | Web UI | ✅ Done | Login, Dashboard, Search, Documents, Settings pages |
+| 8 | Deploy | ⏳ Partial | Local verified, production deploy pending |
 
 ---
 
-## Progress by Area
+## Verified Locally (via curl)
 
-### Supabase & Infrastructure
-```
-░░░░░░░░░░ 0%
-```
-- ⬚ Task 1: Scaffolding + Supabase
+- **sync-status:** returns source counts + last sync per source
+- **sync-chatgpt:** mock data upsert works, idempotent
+- **sync-chatgpt-check:** delta detection correct
+- **auth-gmail:** OAuth URL generation works, error handling correct
+- **sync-gmail:** error handling when no credentials
+- **sync-sites:** cheerio+turndown parsing, idempotency via SHA-256 hash
+- **sync-documents:** txt, Telegram JSON, generic JSON all parse correctly
 
-### Server (Hono API)
-```
-░░░░░░░░░░ 0%
-```
-- ⬚ Task 2: Base + Auth
-- ⬚ Task 3: ChatGPT sync
-- ⬚ Task 4: Gmail OAuth + sync
-- ⬚ Task 5: TG + Sites + Docs
-- ⬚ Task 6: Embeddings
+## Bugs Found and Fixed
 
-### Chrome Extension
-```
-░░░░░░░░░░ 0%
-```
-- ⬚ Task 7: ChatGPT scraper
+- **sync-sites:** MD5 → SHA-256 (Deno Web Crypto API incompatibility)
+- **extension/popup.js:** added HTTP error checks for Edge Function responses
+- **web:** ESLint config fix for shadcn constant exports, SearchPage setState pattern
 
-### Web UI (React)
-```
-░░░░░░░░░░ 0%
-```
-- ⬚ Task 8: Scaffolding + Auth
-- ⬚ Task 9: Dashboard + Cards
-- ⬚ Task 10: Documents Table
-- ⬚ Task 11: Settings + Upload
+## What Remains for Production
 
-### Deployment
-```
-░░░░░░░░░░ 0%
-```
-- ⬚ Task 12: Deploy all
+- [ ] Deploy Edge Functions: `supabase functions deploy`
+- [ ] Set production secrets (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI)
+- [ ] Deploy web to Vercel
+- [ ] Manual testing: Gmail OAuth flow, Chrome Extension in browser
+- [ ] Smoke test all 13 scenarios from the checklist
 
 ---
 
@@ -76,3 +57,7 @@
 | Date | What | Notes |
 |------|------|-------|
 | 2026-03-17 | Project kickoff | Design spec ready, plan written |
+| 2026-03-17 | Tasks 1–6 completed | Backend + extension fully built |
+| 2026-03-18 | Task 7 completed | Web UI: login, dashboard, search, documents, settings |
+| 2026-03-18 | Task 8 partial | Local verification done, production deploy pending |
+| 2026-03-18 | Final cleanup | Lint/typecheck pass, production build OK, artifacts cleaned |
