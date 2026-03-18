@@ -3,6 +3,7 @@ import { Mail, Globe, Upload, User, X, Check, AlertCircle, FileUp, Loader2 } fro
 import { cn } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 import { edgeFetch } from '@/lib/api'
+import { parseFile } from '@/lib/file-parser'
 
 /* -------------------------------------------------------------------------- */
 /*  Shared card wrapper                                                        */
@@ -18,8 +19,8 @@ function SettingsCard({
   children: React.ReactNode
 }) {
   return (
-    <div className="rounded-xl border border-slate-800/20 bg-slate-900/50 overflow-hidden">
-      <div className="flex items-center gap-2.5 border-b border-slate-800/20 px-5 py-3.5">
+    <div className="rounded-xl bg-slate-900/50 overflow-hidden">
+      <div className="flex items-center gap-2.5 px-5 py-3.5">
         <Icon className="h-4 w-4 text-slate-400" />
         <h3 className="text-sm font-semibold text-slate-100">{title}</h3>
       </div>
@@ -93,7 +94,7 @@ function GmailSection() {
             <button
               onClick={handleDisconnect}
               disabled={loading}
-              className="rounded-md border border-slate-700/50 px-3 py-1.5 text-xs font-medium text-red-400 transition-colors hover:bg-red-500/10 hover:border-red-500/30 disabled:opacity-50"
+              className="rounded-md bg-slate-800 px-3 py-1.5 text-xs font-medium text-red-400 transition-colors hover:bg-red-500/10 disabled:opacity-50"
             >
               Отключить
             </button>
@@ -197,7 +198,7 @@ function SitesSection() {
             value={newUrl}
             onChange={(e) => setNewUrl(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && addUrl()}
-            className="h-9 flex-1 rounded-lg border border-slate-700/50 bg-slate-800 px-3 text-sm text-slate-200 placeholder:text-slate-500 outline-none transition-colors focus:border-slate-600 focus:ring-1 focus:ring-slate-600"
+            className="h-9 flex-1 rounded-lg border-0 bg-slate-800 px-3 text-sm text-slate-200 placeholder:text-slate-500 outline-none transition-colors focus:ring-1 focus:ring-slate-600"
           />
           <button
             onClick={addUrl}
@@ -224,6 +225,7 @@ interface UploadedFile {
 }
 
 const ACCEPTED_TYPES = '.json,.txt,.md,.csv,.pdf,.docx,.xlsx'
+const MAX_FILES = 50
 
 function FileUploadSection() {
   const [dragOver, setDragOver] = useState(false)
@@ -235,17 +237,22 @@ function FileUploadSection() {
     setFiles((prev) => [...prev, entry])
 
     try {
-      const path = `${Date.now()}-${file.name}`
-      const { error: uploadError } = await supabase.storage
-        .from('documents')
-        .upload(path, file)
+      const parsed = await parseFile(file)
 
-      if (uploadError) throw uploadError
-
-      await edgeFetch('sync-documents', {
+      const res = await edgeFetch('sync-documents', {
         method: 'POST',
-        body: JSON.stringify({ path, filename: file.name }),
+        body: JSON.stringify({
+          text: parsed.text,
+          filename: file.name,
+          format: parsed.format,
+          pageCount: parsed.pageCount,
+        }),
       })
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error || `Ошибка обработки: ${res.status}`)
+      }
 
       setFiles((prev) =>
         prev.map((f) => (f.name === file.name ? { ...f, status: 'success' as const } : f)),
@@ -261,9 +268,12 @@ function FileUploadSection() {
     }
   }
 
-  const handleFiles = (fileList: FileList | null) => {
+  const handleFiles = async (fileList: FileList | null) => {
     if (!fileList) return
-    Array.from(fileList).forEach((f) => void uploadFile(f))
+    const selected = Array.from(fileList).slice(0, MAX_FILES)
+    for (const f of selected) {
+      await uploadFile(f)
+    }
   }
 
   const handleDrop = (e: React.DragEvent) => {
@@ -287,8 +297,8 @@ function FileUploadSection() {
           className={cn(
             'flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed p-8 text-center transition-colors duration-200',
             dragOver
-              ? 'border-blue-500 bg-blue-500/5'
-              : 'border-slate-700/40 hover:border-slate-600/50 hover:bg-slate-800/30',
+              ? 'border-blue-500/40 bg-blue-500/5'
+              : 'border-slate-700/20 hover:border-slate-600/30 hover:bg-slate-800/30',
           )}
         >
           <FileUp className="mb-3 h-8 w-8 text-slate-500" />
@@ -296,7 +306,7 @@ function FileUploadSection() {
             Перетащите файлы сюда или нажмите для выбора
           </p>
           <p className="mt-1.5 text-xs text-slate-500">
-            JSON, TXT, MD, CSV, PDF, DOCX, XLSX
+            JSON, TXT, MD, CSV, PDF, DOCX, XLSX — до 50 файлов за раз
           </p>
           <input
             ref={inputRef}
@@ -359,7 +369,7 @@ function AccountSection({
         <span className="text-sm text-slate-300">{userEmail ?? 'Нет данных'}</span>
         <button
           onClick={onLogout}
-          className="rounded-md border border-slate-700/50 px-3 py-1.5 text-xs font-medium text-red-400 transition-colors hover:bg-red-500/10 hover:border-red-500/30"
+          className="rounded-md bg-slate-800 px-3 py-1.5 text-xs font-medium text-red-400 transition-colors hover:bg-red-500/10"
         >
           Выйти
         </button>
