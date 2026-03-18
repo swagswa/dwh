@@ -14,9 +14,6 @@ interface SourceStats {
   lastSync: string | null
 }
 
-interface SyncStatus {
-  sources: SourceStats[]
-}
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
@@ -49,7 +46,7 @@ const borderLeftColor: Record<string, string> = {
 
 function SkeletonCard() {
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900 p-5 animate-pulse">
+    <div className="rounded-xl bg-slate-900/60 p-5 animate-pulse">
       <div className="flex items-center gap-2.5 mb-4">
         <div className="h-5 w-5 rounded bg-slate-800" />
         <div className="h-4 w-24 rounded bg-slate-800" />
@@ -68,9 +65,10 @@ interface SourceStatsCardProps {
   stat: SourceStats
   onSync: (source: SourceKey) => Promise<void>
   syncing: boolean
+  extra?: React.ReactNode
 }
 
-function SourceStatsCard({ stat, onSync, syncing }: SourceStatsCardProps) {
+function SourceStatsCard({ stat, onSync, syncing, extra }: SourceStatsCardProps) {
   const config = sources[stat.source]
   const Icon = config.icon
   const accentBorder = borderLeftColor[config.color] ?? 'border-l-slate-500'
@@ -82,7 +80,7 @@ function SourceStatsCard({ stat, onSync, syncing }: SourceStatsCardProps) {
   return (
     <div
       className={cn(
-        'group relative rounded-xl border border-slate-800 bg-slate-900 p-5 border-l-[3px] transition-colors duration-200 hover:border-slate-700',
+        'group relative rounded-xl bg-slate-900/60 p-5 border-l-[3px] border-l-solid border-t-0 border-b-0 border-r-0 transition-all duration-200 hover:bg-slate-900',
         accentBorder,
       )}
     >
@@ -115,8 +113,8 @@ function SourceStatsCard({ stat, onSync, syncing }: SourceStatsCardProps) {
             onClick={() => onSync(stat.source)}
             disabled={syncing}
             className={cn(
-              'inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-all duration-200',
-              'border-slate-700 text-slate-400 hover:border-slate-600 hover:text-slate-300 hover:bg-slate-800/50',
+              'inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all duration-200',
+              'bg-slate-800/50 text-slate-400 hover:text-slate-300 hover:bg-slate-800',
               'disabled:opacity-50 disabled:cursor-not-allowed',
             )}
           >
@@ -126,17 +124,19 @@ function SourceStatsCard({ stat, onSync, syncing }: SourceStatsCardProps) {
         )}
 
         {isChatGPT && (
-          <span className="inline-flex items-center gap-1 rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-2.5 py-1 text-xs font-medium text-emerald-400">
+          <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-400">
             Через расширение
           </span>
         )}
 
         {isTelegram && (
-          <span className="inline-flex items-center gap-1 rounded-lg border border-sky-500/30 bg-sky-500/5 px-2.5 py-1 text-xs font-medium text-sky-400">
+          <span className="inline-flex items-center gap-1 rounded-lg bg-sky-500/10 px-2.5 py-1 text-xs font-medium text-sky-400">
             Загрузите JSON
           </span>
         )}
       </div>
+
+      {extra && <div className="mt-3 pt-3 border-t border-slate-800/30">{extra}</div>}
     </div>
   )
 }
@@ -166,7 +166,7 @@ function TopStatsBar({ totalDocs, sourceCount, lastSync, loading }: TopStatsProp
         return (
           <div
             key={s.label}
-            className="rounded-lg bg-slate-900/50 border border-slate-800/50 p-4"
+            className="rounded-lg bg-slate-900/40 p-4"
           >
             {loading ? (
               <div className="animate-pulse">
@@ -197,17 +197,38 @@ function TopStatsBar({ totalDocs, sourceCount, lastSync, loading }: TopStatsProp
 
 const ALL_SOURCES: SourceKey[] = ['chatgpt', 'gmail', 'telegram', 'sites', 'documents']
 
+const GMAIL_DEPTH_OPTIONS = [
+  { label: '10 дней', days: 10 },
+  { label: '1 месяц', days: 30 },
+  { label: '3 месяца', days: 90 },
+  { label: '6 месяцев', days: 180 },
+  { label: '1 год', days: 365 },
+  { label: 'Всё', days: 0 },
+]
+
 export function DashboardPage() {
-  const [stats, setStats] = useState<SourceStats[]>([])
-  const [loading, setLoading] = useState(true)
+  const [stats, setStats] = useState<SourceStats[]>(() => {
+    try {
+      const cached = sessionStorage.getItem('dwh-stats')
+      return cached ? JSON.parse(cached) : []
+    } catch { return [] }
+  })
+  const [loading, setLoading] = useState(() => !sessionStorage.getItem('dwh-stats'))
   const [syncingSource, setSyncingSource] = useState<SourceKey | null>(null)
+  const [gmailDepth, setGmailDepth] = useState(30)
 
   const fetchStats = useCallback(async () => {
     try {
       const res = await edgeFetch('sync-status')
       if (res.ok) {
-        const data: SyncStatus = await res.json()
-        setStats(data.sources ?? [])
+        const data = await res.json()
+        const parsed: SourceStats[] = ALL_SOURCES.map((source) => ({
+          source,
+          count: data[source]?.count ?? 0,
+          lastSync: data[source]?.lastSync?.finished_at ?? data[source]?.lastSync?.started_at ?? null,
+        }))
+        setStats(parsed)
+        sessionStorage.setItem('dwh-stats', JSON.stringify(parsed))
       }
     } catch {
       // silently fail — stats will show zeros
@@ -224,13 +245,26 @@ export function DashboardPage() {
     setSyncingSource(source)
     try {
       if (source === 'gmail') {
-        // Gmail uses cursor-based pagination — loop until done
+        // Calculate "after" date based on depth
+        const after = gmailDepth > 0
+          ? new Date(Date.now() - gmailDepth * 86400000).toISOString().slice(0, 10).replace(/-/g, '/')
+          : undefined
+
         let done = false
+        let cursor: string | null = null
         while (!done) {
-          const res = await edgeFetch(`sync-${source}`, { method: 'POST' })
-          if (!res.ok) break
+          const res = await edgeFetch('sync-gmail', {
+            method: 'POST',
+            body: JSON.stringify({ cursor, after }),
+          })
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}))
+            console.error('sync-gmail error:', err)
+            break
+          }
           const body = await res.json()
-          done = !body.nextPageToken
+          cursor = body.cursor || null
+          done = body.done
         }
       } else {
         await edgeFetch(`sync-${source}`, { method: 'POST' })
@@ -283,6 +317,20 @@ export function DashboardPage() {
               stat={stat}
               onSync={handleSync}
               syncing={syncingSource === stat.source}
+              extra={stat.source === 'gmail' ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-500">Глубина:</span>
+                  <select
+                    value={gmailDepth}
+                    onChange={(e) => setGmailDepth(Number(e.target.value))}
+                    className="rounded-md bg-slate-800 px-2 py-1 text-xs text-slate-300 border-0 outline-none cursor-pointer"
+                  >
+                    {GMAIL_DEPTH_OPTIONS.map((opt) => (
+                      <option key={opt.days} value={opt.days}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+              ) : undefined}
             />
           ))}
         </div>

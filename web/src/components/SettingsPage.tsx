@@ -268,12 +268,10 @@ function FileUploadSection() {
     }
   }
 
-  const handleFiles = async (fileList: FileList | null) => {
+  const handleFiles = (fileList: FileList | null) => {
     if (!fileList) return
     const selected = Array.from(fileList).slice(0, MAX_FILES)
-    for (const f of selected) {
-      await uploadFile(f)
-    }
+    selected.forEach((f) => void uploadFile(f))
   }
 
   const handleDrop = (e: React.DragEvent) => {

@@ -20,10 +20,31 @@
     .status.info { background: #eff6ff; color: #1e40af; }
     .status.success { background: #f0fdf4; color: #166534; }
     .status.error { background: #fef2f2; color: #991b1b; }
-    .progress-bar { width: 100%; height: 6px; background: #e2e8f0; border-radius: 3px; margin-top: 8px; overflow: hidden; }
-    .progress-fill { height: 100%; background: #3b82f6; border-radius: 3px; transition: width 0.3s; }
     .hidden { display: none; }
     .divider { border-top: 1px solid #e2e8f0; margin: 16px 0; }
+
+    /* Slider + input row */
+    .range-row { display: flex; align-items: center; gap: 10px; }
+    .range-row input[type=range] { flex: 1; accent-color: #3b82f6; }
+    .limit-input { width: 64px !important; padding: 6px 8px !important; text-align: center; font-weight: 600; font-size: 13px !important; }
+
+    /* Progress section */
+    .progress-section { margin-top: 12px; }
+    .progress-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+    .progress-counter { font-size: 13px; color: #64748b; }
+    .progress-counter .current { font-size: 20px; font-weight: 700; color: #1e293b; transition: all 0.3s ease; display: inline-block; }
+    .progress-counter .total { font-weight: 600; }
+    .progress-counter .current.bump { animation: bump 0.3s ease; }
+    .progress-pct { font-size: 13px; font-weight: 600; color: #3b82f6; transition: all 0.3s ease; }
+    .progress-track { width: 100%; height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden; }
+    .progress-fill { height: 100%; background: linear-gradient(90deg, #3b82f6, #6366f1); border-radius: 4px; transition: width 0.4s ease; width: 0%; }
+    .progress-title { font-size: 12px; color: #94a3b8; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: opacity 0.2s; }
+
+    @keyframes bump {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.2); color: #3b82f6; }
+      100% { transform: scale(1); }
+    }
   </style>
 </head>
 <body>
@@ -43,16 +64,28 @@
 
   <div id="sync-section" class="hidden">
     <h2>ChatGPT Sync</h2>
-    <button id="sync-btn" class="btn-primary">Синхронизировать</button>
+    <div class="form-group">
+      <label>Количество чатов</label>
+      <div class="range-row">
+        <input id="chat-limit" type="range" min="10" max="2000" step="10" value="50">
+        <input id="chat-limit-input" type="number" min="1" max="99999" value="50" class="limit-input">
+      </div>
+    </div>
+    <button id="sync-btn" class="btn-primary">Синхронизировать (50)</button>
     <div id="sync-status" class="status info hidden"></div>
-    <div id="progress-container" class="hidden">
-      <div class="progress-bar"><div id="progress-fill" class="progress-fill" style="width:0%"></div></div>
+    <div id="progress-container" class="progress-section hidden">
+      <div class="progress-header">
+        <span class="progress-counter"><span id="progress-current" class="current">0</span> <span class="total">/ <span id="progress-total">0</span></span></span>
+        <span id="progress-pct" class="progress-pct">0%</span>
+      </div>
+      <div class="progress-track"><div id="progress-fill" class="progress-fill"></div></div>
+      <div id="progress-title" class="progress-title"></div>
     </div>
     <div class="divider"></div>
     <button id="logout-btn" class="btn-secondary">Выйти</button>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="supabase.min.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

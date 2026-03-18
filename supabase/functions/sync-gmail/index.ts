@@ -6,12 +6,15 @@ import { jsonResponse, errorResponse } from '../_shared/response.ts'
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return corsResponse()
 
+  try {
+
   const auth = await verifyAuth(req)
   if (auth.error) return errorResponse(auth.error, 401)
 
   const supabase = getServiceClient()
   const body = req.method === 'POST' ? await req.json().catch(() => ({})) : {}
   const cursor = body.cursor || null
+  const after: string | undefined = body.after // e.g. "2026/03/08"
 
   // 1. Get credentials
   const { data: cred } = await supabase
@@ -48,6 +51,7 @@ Deno.serve(async (req) => {
   const listUrl = new URL('https://gmail.googleapis.com/gmail/v1/users/me/messages')
   listUrl.searchParams.set('maxResults', '50')
   if (cursor) listUrl.searchParams.set('pageToken', cursor)
+  if (after) listUrl.searchParams.set('q', `after:${after}`)
 
   const listRes = await fetch(listUrl.toString(), { headers: gmailHeaders })
   const listData = await listRes.json()
@@ -149,4 +153,8 @@ Deno.serve(async (req) => {
     cursor: nextPageToken,
     done: !nextPageToken,
   })
+
+  } catch (e) {
+    return errorResponse(`Unexpected error: ${(e as Error).message}`, 500)
+  }
 })

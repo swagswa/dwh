@@ -19,7 +19,7 @@ const navItems: { key: PageKey; label: string; icon: typeof LayoutDashboard }[] 
 
 export function Sidebar({ currentPage, onNavigate, userEmail, onLogout }: SidebarProps) {
   return (
-    <aside className="fixed inset-y-0 left-0 z-30 flex w-60 flex-col border-r border-slate-800 bg-slate-950">
+    <aside className="fixed inset-y-0 left-0 z-30 flex w-60 flex-col bg-slate-950">
       {/* Logo */}
       <div className="flex h-14 items-center gap-2.5 px-5">
         <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-600 text-[11px] font-bold tracking-wider text-white">
@@ -59,7 +59,7 @@ export function Sidebar({ currentPage, onNavigate, userEmail, onLogout }: Sideba
       </nav>
 
       {/* User section */}
-      <div className="border-t border-slate-800 px-3 py-3">
+      <div className="px-3 py-3">
         {userEmail && (
           <p className="mb-2 truncate px-3 text-xs text-slate-500" title={userEmail}>
             {userEmail}

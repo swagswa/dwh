@@ -22,8 +22,8 @@
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
   --destructive-foreground: 210 40% 98%;
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
+  --border: oklch(1 0 0 / 6%);
+  --input: oklch(1 0 0 / 10%);
   --ring: oklch(0.556 0 0);
   --radius: 0.625rem;
   --chart-1: oklch(0.809 0.105 251.813);
@@ -37,7 +37,7 @@
   --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-accent: oklch(0.269 0 0);
   --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-border: oklch(1 0 0 / 6%);
   --sidebar-ring: oklch(0.556 0 0);
   --sidebar: oklch(0.205 0 0);
 }
@@ -90,14 +90,14 @@
 }
 
 html {
-  background-color: #020617;
-  color: #f8fafc;
+  background-color: #080a0f;
+  color: #e2e8f0;
 }
 
 body {
   margin: 0;
-  background-color: #020617;
-  color: #f8fafc;
+  background-color: #080a0f;
+  color: #e2e8f0;
   font-family: 'Geist Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
 }
@@ -116,4 +116,146 @@ body {
   html {
     @apply font-sans;
   }
+}
+
+/* Chat markdown styles */
+.chat-markdown {
+  line-height: 1.6;
+}
+
+.chat-markdown p {
+  margin: 0.25em 0;
+}
+
+.chat-markdown p:first-child {
+  margin-top: 0;
+}
+
+.chat-markdown p:last-child {
+  margin-bottom: 0;
+}
+
+.chat-markdown strong {
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.chat-markdown em {
+  font-style: italic;
+}
+
+.chat-markdown h1,
+.chat-markdown h2,
+.chat-markdown h3,
+.chat-markdown h4 {
+  font-weight: 600;
+  color: #e2e8f0;
+  margin: 0.75em 0 0.25em;
+}
+
+.chat-markdown h1:first-child,
+.chat-markdown h2:first-child,
+.chat-markdown h3:first-child {
+  margin-top: 0;
+}
+
+.chat-markdown h1 { font-size: 1.15em; }
+.chat-markdown h2 { font-size: 1.1em; }
+.chat-markdown h3 { font-size: 1.05em; }
+
+.chat-markdown ul,
+.chat-markdown ol {
+  margin: 0.4em 0;
+  padding-left: 1.5em;
+}
+
+.chat-markdown ul {
+  list-style-type: disc;
+}
+
+.chat-markdown ol {
+  list-style-type: decimal;
+}
+
+.chat-markdown li {
+  margin: 0.15em 0;
+}
+
+.chat-markdown li > ul,
+.chat-markdown li > ol {
+  margin: 0.1em 0;
+}
+
+.chat-markdown code {
+  font-family: 'Geist Mono', ui-monospace, monospace;
+  font-size: 0.85em;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  padding: 0.15em 0.35em;
+  color: #93c5fd;
+}
+
+.chat-markdown pre {
+  margin: 0.5em 0;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  overflow-x: auto;
+}
+
+.chat-markdown pre code {
+  display: block;
+  padding: 0.75em 1em;
+  background: none;
+  border: none;
+  border-radius: 0;
+  color: #cbd5e1;
+  font-size: 0.82em;
+  line-height: 1.5;
+  white-space: pre;
+}
+
+.chat-markdown blockquote {
+  margin: 0.5em 0;
+  padding-left: 0.75em;
+  border-left: 3px solid rgba(148, 163, 184, 0.3);
+  color: #94a3b8;
+}
+
+.chat-markdown a {
+  color: #60a5fa;
+  text-decoration: underline;
+  text-decoration-color: rgba(96, 165, 250, 0.3);
+  text-underline-offset: 2px;
+}
+
+.chat-markdown a:hover {
+  text-decoration-color: rgba(96, 165, 250, 0.6);
+}
+
+.chat-markdown hr {
+  margin: 0.75em 0;
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.chat-markdown table {
+  margin: 0.5em 0;
+  border-collapse: collapse;
+  font-size: 0.9em;
+  width: 100%;
+}
+
+.chat-markdown th,
+.chat-markdown td {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 0.35em 0.6em;
+  text-align: left;
+}
+
+.chat-markdown th {
+  background: rgba(255, 255, 255, 0.04);
+  font-weight: 600;
+  color: #e2e8f0;
 }

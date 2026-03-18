@@ -22,6 +22,10 @@ Deno.serve(async (req) => {
   const toUpsert: any[] = []
 
   for (const conv of conversations) {
+    // ChatGPT full conversation API returns conversation_id, not id
+    const convId = conv.conversation_id || conv.id
+    if (!convId) continue
+
     const messages = Object.values(conv.mapping || {})
       .filter((n: any) => n.message?.content?.parts?.length)
       .map((n: any) => ({
@@ -31,7 +35,6 @@ Deno.serve(async (req) => {
 
     const content = messages.map((m: any) => `${m.role}: ${m.content}`).join('\n\n')
 
-    // SHA-256 hash for change detection (MD5 not supported by Web Crypto API)
     const encoder = new TextEncoder()
     const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(content))
     const contentHash = Array.from(new Uint8Array(hashBuffer))
@@ -39,11 +42,11 @@ Deno.serve(async (req) => {
 
     toUpsert.push({
       source: 'chatgpt',
-      source_id: conv.id,
+      source_id: convId,
       title: conv.title || 'Untitled',
       content,
       content_hash: contentHash,
-      metadata: { chat_id: conv.id, message_count: messages.length, messages },
+      metadata: { chat_id: convId, message_count: messages.length, messages },
       updated_at: new Date().toISOString(),
     })
   }

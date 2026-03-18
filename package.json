@@ -2,5 +2,11 @@
   "name": "dwh",
   "private": true,
   "type": "module",
-  "workspaces": ["web", "shared"]
+  "workspaces": [
+    "web",
+    "shared"
+  ],
+  "devDependencies": {
+    "react-refresh": "^0.18.0"
+  }
 }

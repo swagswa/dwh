@@ -72,10 +72,30 @@ function SkeletonCard() {
   )
 }
 
+function getInitialParams() {
+  const params = new URLSearchParams(window.location.search)
+  return {
+    q: params.get('q') || '',
+    tab: (params.get('tab') || 'all') as TabKey,
+  }
+}
+
+function syncSearchParams(q: string, tab: TabKey) {
+  const params = new URLSearchParams(window.location.search)
+  if (q) params.set('q', q)
+  else params.delete('q')
+  if (tab !== 'all') params.set('tab', tab)
+  else params.delete('tab')
+  const qs = params.toString()
+  const url = window.location.pathname + (qs ? `?${qs}` : '') + window.location.hash
+  window.history.replaceState({}, '', url)
+}
+
 export function SearchPage() {
-  const [searchText, setSearchText] = useState('')
-  const [debouncedText, setDebouncedText] = useState('')
-  const [activeTab, setActiveTab] = useState<TabKey>('all')
+  const initial = getInitialParams()
+  const [searchText, setSearchText] = useState(initial.q)
+  const [debouncedText, setDebouncedText] = useState(initial.q)
+  const [activeTab, setActiveTab] = useState<TabKey>(initial.tab)
   const [results, setResults] = useState<Document[]>([])
   const [loading, setLoading] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
@@ -88,6 +108,11 @@ export function SearchPage() {
     const timer = setTimeout(() => setDebouncedText(searchText), 300)
     return () => clearTimeout(timer)
   }, [searchText])
+
+  // Sync state to URL
+  useEffect(() => {
+    syncSearchParams(debouncedText, activeTab)
+  }, [debouncedText, activeTab])
 
   // Fetch
   const fetchResults = useCallback(async (text: string, source: TabKey) => {
@@ -237,7 +262,16 @@ export function SearchPage() {
       </div>
 
       {/* Document sheet */}
-      <DocumentSheet document={selectedDoc} onClose={() => setSelectedDoc(null)} />
+      <DocumentSheet
+        document={selectedDoc}
+        onClose={() => setSelectedDoc(null)}
+        searchQuery={debouncedText}
+        onDelete={async (id) => {
+          await supabase.from('documents').delete().eq('id', id)
+          setSelectedDoc(null)
+          setResults((prev) => prev.filter((d) => d.id !== id))
+        }}
+      />
     </>
   )
 }

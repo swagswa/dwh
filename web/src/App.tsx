@@ -9,33 +9,59 @@ import type { PageKey } from '@/components/Sidebar'
 import { SearchPage } from '@/components/SearchPage'
 import { DocumentsPage } from '@/components/DocumentsPage'
 import { SettingsPage } from '@/components/SettingsPage'
+import { GlobalDropZone } from '@/components/GlobalDropZone'
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
-  const [currentPage, setCurrentPage] = useState<PageKey>('dashboard')
+  const [currentPage, setCurrentPage] = useState<PageKey>(() => {
+    const hash = window.location.hash.replace('#', '') as PageKey
+    return ['dashboard', 'search', 'documents', 'settings'].includes(hash) ? hash : 'dashboard'
+  })
+
+  // Sync current page to URL hash
+  useEffect(() => {
+    window.location.hash = currentPage
+  }, [currentPage])
+
+  // Handle browser back/forward
+  useEffect(() => {
+    const onHashChange = () => {
+      const hash = window.location.hash.replace('#', '') as PageKey
+      if (['dashboard', 'search', 'documents', 'settings'].includes(hash)) {
+        setCurrentPage(hash)
+      }
+    }
+    window.addEventListener('hashchange', onHashChange)
+    return () => window.removeEventListener('hashchange', onHashChange)
+  }, [])
 
   useEffect(() => {
-    // Handle Gmail OAuth callback: ?code= in URL
-    const params = new URLSearchParams(window.location.search)
-    const code = params.get('code')
-    if (code) {
-      void (async () => {
-        try {
-          await edgeFetch(`auth-gmail?code=${encodeURIComponent(code)}`)
-        } catch {
-          // silently ignore -- user may not be authed yet
-        }
-        const clean = window.location.pathname
-        window.history.replaceState({}, '', clean)
-      })()
-    }
-
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
+    const init = async () => {
+      // 1. Instant load from localStorage (no network)
+      const { data: { session: cached } } = await supabase.auth.getSession()
+      setSession(cached)
       setLoading(false)
-    }).catch(() => setLoading(false))
+
+      // 2. Background refresh (updates token silently)
+      supabase.auth.refreshSession().catch(() => {})
+
+      // 3. Handle Gmail OAuth callback: ?code= in URL (needs session)
+      const params = new URLSearchParams(window.location.search)
+      const code = params.get('code')
+      if (code && cached) {
+        try {
+          await edgeFetch('auth-gmail', {
+            method: 'POST',
+            body: JSON.stringify({ code }),
+          })
+        } catch (err) {
+          console.error('Gmail OAuth exchange failed:', err)
+        }
+        window.history.replaceState({}, '', window.location.pathname + window.location.hash)
+      }
+    }
+    void init()
 
     // Subscribe to auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -61,6 +87,7 @@ export default function App() {
   }
 
   return (
+    <GlobalDropZone>
     <AppLayout
       currentPage={currentPage}
       onNavigate={setCurrentPage}
@@ -77,5 +104,6 @@ export default function App() {
         <SettingsPage userEmail={session.user.email} onLogout={() => supabase.auth.signOut()} />
       )}
     </AppLayout>
+    </GlobalDropZone>
   )
 }
