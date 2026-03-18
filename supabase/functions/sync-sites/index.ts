@@ -67,7 +67,7 @@ Deno.serve(async (req) => {
 
       // Hash check
       const encoder = new TextEncoder()
-      const hashBuf = await crypto.subtle.digest('MD5', encoder.encode(content))
+      const hashBuf = await crypto.subtle.digest('SHA-256', encoder.encode(content))
       const contentHash = Array.from(new Uint8Array(hashBuf))
         .map(b => b.toString(16).padStart(2, '0')).join('')
 
