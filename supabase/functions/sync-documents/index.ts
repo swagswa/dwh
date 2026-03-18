@@ -16,38 +16,63 @@ Deno.serve(async (req) => {
 
   const ext = filename.split('.').pop()?.toLowerCase() || ''
 
-  // Telegram JSON detection
+  // Telegram JSON detection — store as single conversation
   if (format === 'json') {
     try {
       const parsed = JSON.parse(text)
       if (parsed.messages && Array.isArray(parsed.messages)) {
         const channelName = parsed.name || 'Unknown Channel'
-        const toUpsert: any[] = []
+
+        // Extract plain text from Telegram's text field (can be string or array of mixed strings/objects)
+        const extractText = (text: unknown): string => {
+          if (typeof text === 'string') return text
+          if (Array.isArray(text)) {
+            return text.map((part: unknown) => {
+              if (typeof part === 'string') return part
+              if (part && typeof part === 'object' && 'text' in (part as Record<string, unknown>))
+                return (part as Record<string, string>).text
+              return ''
+            }).join('')
+          }
+          return ''
+        }
+
+        // Collect all messages (text, service, forwarded, etc.)
+        const messages: { id: number; date: string; from: string; text: string }[] = []
+        const contentParts: string[] = []
 
         for (const msg of parsed.messages) {
-          if (!msg.text || typeof msg.text !== 'string' || !msg.text.trim()) continue
-          toUpsert.push({
-            source: 'telegram',
-            source_id: `${channelName}_${msg.id}`,
-            title: `${channelName} #${msg.id}`,
-            content: msg.text,
-            metadata: { channel: channelName, message_id: msg.id, date: msg.date },
-            updated_at: new Date().toISOString(),
+          const text = extractText(msg.text)
+          if (!text.trim()) continue
+          messages.push({
+            id: msg.id,
+            date: msg.date || '',
+            from: msg.from || msg.actor || 'Unknown',
+            text,
           })
+          contentParts.push(text)
         }
 
-        if (toUpsert.length) {
-          await supabase.from('documents').upsert(toUpsert, { onConflict: 'source,source_id' })
-        }
+        // Store as one document with all messages in metadata
+        const content = contentParts.join('\n\n')
+
+        await supabase.from('documents').upsert({
+          source: 'telegram',
+          source_id: channelName,
+          title: channelName,
+          content,
+          metadata: { channel: channelName, message_count: messages.length, messages },
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'source,source_id' })
 
         await supabase.from('sync_runs').insert({
           source: 'telegram',
           status: 'completed',
           finished_at: new Date().toISOString(),
-          items_synced: toUpsert.length,
+          items_synced: 1,
         })
 
-        return jsonResponse({ synced: toUpsert.length, format: 'telegram_json' })
+        return jsonResponse({ synced: 1, messages: messages.length, format: 'telegram_json' })
       }
     } catch {
       // Not valid JSON or not Telegram — fall through to generic document

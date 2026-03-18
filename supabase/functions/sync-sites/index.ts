@@ -2,8 +2,9 @@ import { corsResponse } from '../_shared/cors.ts'
 import { verifyAuth } from '../_shared/auth.ts'
 import { getServiceClient } from '../_shared/supabase.ts'
 import { jsonResponse, errorResponse } from '../_shared/response.ts'
-import * as cheerio from 'npm:cheerio@1'
+// cheerio/turndown kept as fallback only if Jina is completely down
 import TurndownService from 'npm:turndown@7'
+import * as cheerio from 'npm:cheerio@1'
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return corsResponse()
@@ -37,28 +38,41 @@ Deno.serve(async (req) => {
 
   for (const url of urls) {
     try {
-      const res = await fetch(url, {
-        headers: { 'User-Agent': 'DWH-Bot/1.0' },
-      })
-      if (!res.ok) {
-        console.error(`Failed to fetch ${url}: ${res.status}`)
-        continue
+      // Try Jina Reader first (handles SPAs + static sites), fallback to direct fetch
+      let title = ''
+      let content = ''
+
+      const jinaRes = await fetch(`https://r.jina.ai/${url}`, {
+        headers: { 'Accept': 'text/markdown', 'X-No-Cache': 'true' },
+      }).catch(() => null)
+
+      if (jinaRes?.ok) {
+        const md = await jinaRes.text()
+        // Jina returns markdown with "Title: ...\n" header
+        const titleMatch = md.match(/^Title:\s*(.+)$/m)
+        title = titleMatch?.[1]?.trim() || ''
+        // Remove Jina metadata lines (Title:, URL:, etc.) from content
+        content = md.replace(/^(Title|URL|Markdown Content):\s*.+$/gm, '').trim()
       }
 
-      const html = await res.text()
-      const $ = cheerio.load(html)
+      // Fallback: direct fetch + cheerio (for when Jina is down)
+      if (!content) {
+        const res = await fetch(url, {
+          headers: { 'User-Agent': 'DWH-Bot/1.0' },
+        })
+        if (!res.ok) {
+          console.error(`Failed to fetch ${url}: ${res.status}`)
+          continue
+        }
+        const html = await res.text()
+        const $ = cheerio.load(html)
+        $('script, style, nav, footer, header, aside, iframe, noscript').remove()
+        title = title || $('title').text().trim() || $('h1').first().text().trim() || ''
+        const contentHtml = $('article').html() || $('main').html() || $('body').html() || ''
+        content = turndown.turndown(contentHtml).trim()
+      }
 
-      // Remove scripts, styles, nav, footer
-      $('script, style, nav, footer, header, aside, iframe, noscript').remove()
-
-      // Extract title
-      const title = $('title').text().trim() || $('h1').first().text().trim() || url
-
-      // Extract main content (prefer article/main, fallback to body)
-      const contentHtml = $('article').html() || $('main').html() || $('body').html() || ''
-
-      // Convert to Markdown
-      const content = turndown.turndown(contentHtml).trim()
+      title = title || url
 
       if (!content) {
         console.error(`No content extracted from ${url}`)
