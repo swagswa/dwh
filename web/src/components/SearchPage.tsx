@@ -125,14 +125,18 @@ export function SearchPage() {
     setLoading(false)
   }, [])
 
+  // Reset state when search is cleared
+  const shouldReset = !debouncedText && activeTab === 'all'
+  if (shouldReset && hasSearched) {
+    setHasSearched(false)
+    setResults([])
+    setLoading(false)
+  }
+
   // Trigger search on debounced text or tab change
   useEffect(() => {
-    if (!debouncedText && activeTab === 'all') {
-      setHasSearched(false)
-      setResults([])
-      setLoading(false)
-      return
-    }
+    if (!debouncedText && activeTab === 'all') return
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetchResults is async data fetching, setState in callback is intentional
     fetchResults(debouncedText, activeTab)
   }, [debouncedText, activeTab, fetchResults])
 
@@ -154,7 +158,7 @@ export function SearchPage() {
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
               placeholder="Поиск по документам..."
-              className="w-full rounded-xl border border-slate-700/50 bg-slate-900/50 p-4 pl-12 text-lg text-slate-100 placeholder:text-slate-500 outline-none transition-all duration-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/50"
+              className="w-full rounded-xl border-0 bg-slate-900/50 p-4 pl-12 text-lg text-slate-100 placeholder:text-slate-500 outline-none transition-all duration-200 focus:ring-2 focus:ring-blue-500/30"
             />
           </div>
         </div>
