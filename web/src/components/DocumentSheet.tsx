@@ -1,5 +1,7 @@
 import { useEffect, useRef } from 'react'
-import { X, Calendar, Clock, ChevronDown } from 'lucide-react'
+import { X, Calendar, Clock, ChevronDown, User, Bot, Wrench, FileText } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { SourceBadge } from '@/components/SourceBadge'
 import type { SourceKey } from '@/lib/sources'
 
@@ -22,6 +24,80 @@ function formatDate(iso: string) {
     hour: '2-digit',
     minute: '2-digit',
   })
+}
+
+interface ChatMessage {
+  role: string
+  content: string
+}
+
+function ChatBubble({ message }: { message: ChatMessage }) {
+  const isUser = message.role === 'user'
+  const isSystem = message.role === 'system'
+  const isTool = message.role === 'tool'
+
+  const icon = isUser ? (
+    <User className="h-4 w-4" />
+  ) : isTool ? (
+    <Wrench className="h-4 w-4" />
+  ) : (
+    <Bot className="h-4 w-4" />
+  )
+
+  const label = isUser ? 'Вы' : isSystem ? 'Система' : isTool ? 'Инструмент' : 'ChatGPT'
+
+  return (
+    <div className={`flex gap-3 ${isUser ? 'flex-row-reverse' : ''}`}>
+      {/* Avatar */}
+      <div
+        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
+          isUser
+            ? 'bg-blue-500/20 text-blue-400'
+            : isSystem
+              ? 'bg-amber-500/20 text-amber-400'
+              : isTool
+                ? 'bg-purple-500/20 text-purple-400'
+                : 'bg-emerald-500/20 text-emerald-400'
+        }`}
+      >
+        {icon}
+      </div>
+
+      {/* Bubble */}
+      <div className={`max-w-[85%] min-w-0 ${isUser ? 'items-end' : ''}`}>
+        <p className={`mb-1 text-[11px] font-medium ${
+          isUser ? 'text-right text-blue-400' : isSystem ? 'text-amber-400' : isTool ? 'text-purple-400' : 'text-emerald-400'
+        }`}>
+          {label}
+        </p>
+        <div
+          className={`rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
+            isUser
+              ? 'rounded-tr-sm bg-blue-500/15 text-slate-200'
+              : isSystem
+                ? 'rounded-tl-sm bg-amber-500/10 text-slate-300'
+                : isTool
+                  ? 'rounded-tl-sm bg-purple-500/10 text-slate-300'
+                  : 'rounded-tl-sm bg-slate-800/80 text-slate-300'
+          }`}
+        >
+          <div className="chat-markdown break-words">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ChatView({ messages }: { messages: ChatMessage[] }) {
+  return (
+    <div className="flex flex-col gap-4">
+      {messages.map((msg, i) => (
+        <ChatBubble key={i} message={msg} />
+      ))}
+    </div>
+  )
 }
 
 interface DocumentSheetProps {
@@ -67,10 +143,10 @@ export function DocumentSheet({ document: doc, onClose }: DocumentSheetProps) {
       {/* Panel */}
       <div
         ref={panelRef}
-        className="relative z-10 flex h-full w-full max-w-2xl flex-col border-l border-slate-800/30 bg-slate-900 shadow-2xl animate-in slide-in-from-right duration-300"
+        className="relative z-10 flex h-full w-full max-w-2xl flex-col bg-slate-900 shadow-2xl animate-in slide-in-from-right duration-300"
       >
         {/* Header */}
-        <div className="flex items-start gap-3 border-b border-slate-800/30 px-6 py-5">
+        <div className="flex items-start gap-3 border-b border-slate-800/40 px-6 py-5">
           <div className="min-w-0 flex-1">
             <div className="mb-2">
               <SourceBadge source={doc.source} />
@@ -99,10 +175,30 @@ export function DocumentSheet({ document: doc, onClose }: DocumentSheetProps) {
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto px-6 py-5">
-          {doc.content ? (
-            <pre className="whitespace-pre-wrap text-sm leading-relaxed text-slate-300 font-mono">
-              {doc.content}
-            </pre>
+          {/* File info bar for uploaded documents */}
+          {doc.source === 'documents' && doc.metadata && (
+            <div className="mb-4 flex items-center gap-3 rounded-lg bg-slate-800/50 px-4 py-2.5 text-xs text-slate-400">
+              <FileText className="h-4 w-4 text-violet-400" />
+              <span className="font-medium text-slate-300">
+                {(doc.metadata as Record<string, unknown>).filename as string || doc.title}
+              </span>
+              {typeof (doc.metadata as Record<string, unknown>).format === 'string' && (
+                <span className="rounded bg-violet-500/10 px-2 py-0.5 text-violet-400 uppercase">
+                  {(doc.metadata as Record<string, unknown>).format as string}
+                </span>
+              )}
+              {(doc.metadata as Record<string, unknown>).pageCount != null && (
+                <span>{String((doc.metadata as Record<string, unknown>).pageCount)} стр.</span>
+              )}
+            </div>
+          )}
+
+          {doc.source === 'chatgpt' && Array.isArray((doc.metadata as Record<string, unknown>)?.messages) ? (
+            <ChatView messages={(doc.metadata as Record<string, unknown>).messages as ChatMessage[]} />
+          ) : doc.content ? (
+            <div className="chat-markdown text-sm leading-relaxed text-slate-300">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{doc.content}</ReactMarkdown>
+            </div>
           ) : (
             <p className="text-sm text-slate-500 italic">Нет содержимого</p>
           )}
@@ -114,7 +210,7 @@ export function DocumentSheet({ document: doc, onClose }: DocumentSheetProps) {
                 <ChevronDown className="h-3.5 w-3.5 transition-transform duration-200 group-open:rotate-180" />
                 Метаданные
               </summary>
-              <pre className="mt-3 rounded-lg bg-slate-950 border border-slate-800/30 p-4 text-xs text-slate-500 overflow-x-auto">
+              <pre className="mt-3 rounded-lg bg-slate-950 p-4 text-xs text-slate-500 overflow-x-auto">
                 {JSON.stringify(doc.metadata, null, 2)}
               </pre>
             </details>
