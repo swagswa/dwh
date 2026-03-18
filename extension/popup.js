@@ -117,6 +117,7 @@ syncBtn.addEventListener('click', async () => {
         items: allConvs.map(c => ({ id: c.id, update_time: c.update_time })),
       }),
     })
+    if (!checkRes.ok) throw new Error(`sync-chatgpt-check error: ${checkRes.status}`)
     const checkData = await checkRes.json()
     const neededIds = new Set(checkData.needed_ids || [])
 
@@ -156,6 +157,7 @@ syncBtn.addEventListener('click', async () => {
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${jwt}` },
           body: JSON.stringify({ conversations: batch }),
         })
+        if (!syncRes.ok) throw new Error(`sync-chatgpt error: ${syncRes.status}`)
         const syncData = await syncRes.json()
         synced += syncData.synced || 0
         batch = []
