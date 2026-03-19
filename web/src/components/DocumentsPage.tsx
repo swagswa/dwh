@@ -5,10 +5,21 @@ import { supabase } from '@/lib/supabase'
 import { type SourceKey } from '@/lib/sources'
 import { SourceBadge } from '@/components/SourceBadge'
 import { EmptyState } from '@/components/EmptyState'
-import { DocumentSheet, type Document } from '@/components/DocumentSheet'
+import { DocumentSheet } from '@/components/DocumentSheet'
 import { onDataChange } from '@/lib/events'
 
 const PAGE_SIZE = 50
+
+// Slim row type — only what's needed for the list view
+interface DocListItem {
+  id: string
+  source: SourceKey
+  source_id: string
+  title: string
+  created_at: string
+  updated_at: string
+  project_name?: string | null
+}
 
 const tabs: { key: 'all' | SourceKey; label: string }[] = [
   { key: 'all', label: 'Все' },
@@ -31,39 +42,6 @@ function relativeTime(iso: string): string {
   return new Date(iso).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })
 }
 
-function getPreview(doc: Document): string {
-  // For chatgpt, get last assistant message as preview
-  if (doc.source === 'chatgpt') {
-    const meta = doc.metadata as Record<string, unknown> | null
-    const messages = meta?.messages as { role: string; content: string }[] | undefined
-    if (messages?.length) {
-      // Find last assistant message for meaningful preview
-      for (let i = messages.length - 1; i >= 0; i--) {
-        if (messages[i].role === 'assistant' && messages[i].content?.trim()) {
-          return cleanPreview(messages[i].content)
-        }
-      }
-      // Fallback to last user message
-      const last = messages[messages.length - 1]
-      return cleanPreview(last.content)
-    }
-  }
-  if (doc.content) return cleanPreview(doc.content)
-  return ''
-}
-
-function cleanPreview(text: string): string {
-  return text
-    .replace(/```[\s\S]*?```/g, '[код]') // collapse code blocks
-    .replace(/#{1,6}\s/g, '')             // remove markdown headers
-    .replace(/\*{1,2}(.*?)\*{1,2}/g, '$1') // remove bold/italic markers
-    .replace(/`([^`]+)`/g, '$1')          // remove inline code backticks
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // links → text only
-    .replace(/\n+/g, ' ')                 // collapse newlines
-    .replace(/\s+/g, ' ')                 // collapse spaces
-    .trim()
-    .slice(0, 150)
-}
 
 function SkeletonRows() {
   return (
@@ -108,11 +86,11 @@ export function DocumentsPage() {
   const initial = getDocInitialParams()
   const [activeTab, setActiveTab] = useState<'all' | SourceKey>(initial.tab)
   const [searchQuery, setSearchQuery] = useState(initial.q)
-  const [documents, setDocuments] = useState<Document[]>([])
+  const [documents, setDocuments] = useState<DocListItem[]>([])
   const [totalCount, setTotalCount] = useState(0)
   const [page, setPage] = useState(initial.page)
   const [loading, setLoading] = useState(true)
-  const [selectedDoc, setSelectedDoc] = useState<Document | null>(null)
+  const [selectedDocId, setSelectedDocId] = useState<string | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [deleting, setDeleting] = useState(false)
   const [editMode, setEditMode] = useState(false)
@@ -157,7 +135,7 @@ export function DocumentsPage() {
     try {
       let query = supabase
         .from('documents')
-        .select('*', { count: 'exact' })
+        .select('id, source, source_id, title, created_at, updated_at, metadata->project_name', { count: 'exact' })
         .order('updated_at', { ascending: false })
         .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1)
 
@@ -174,7 +152,7 @@ export function DocumentsPage() {
 
       const { data, count, error } = await query
       if (error) throw error
-      setDocuments((data as Document[]) ?? [])
+      setDocuments((data as DocListItem[]) ?? [])
       setTotalCount(count ?? 0)
     } catch (err) {
       console.error('Failed to fetch documents:', err)
@@ -406,13 +384,10 @@ export function DocumentsPage() {
               </tr>
             ) : (
               documents.map((doc) => {
-                const preview = getPreview(doc)
-                const meta = doc.metadata as Record<string, unknown> | null
-                const msgCount = meta?.message_count as number | undefined
                 return (
                   <tr
                     key={doc.id}
-                    onClick={() => editMode ? toggleSelect(doc.id) : setSelectedDoc(doc)}
+                    onClick={() => editMode ? toggleSelect(doc.id) : setSelectedDocId(doc.id)}
                     className={cn(
                       'transition-colors duration-150 hover:bg-slate-800/30 cursor-pointer',
                       editMode && selected.has(doc.id) && 'bg-blue-500/5',
@@ -438,9 +413,9 @@ export function DocumentsPage() {
                     )}
                     <td className="px-4 py-3 w-32">
                       <SourceBadge source={doc.source} />
-                      {doc.source === 'chatgpt' && (doc.metadata as any)?.project_name && (
+                      {doc.source === 'chatgpt' && doc.project_name && (
                         <span className="ml-1.5 rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] text-emerald-400">
-                          {(doc.metadata as any).project_name}
+                          {doc.project_name}
                         </span>
                       )}
                     </td>
@@ -450,16 +425,8 @@ export function DocumentsPage() {
                           <span className="truncate text-sm text-slate-200 block">
                             {doc.title}
                           </span>
-                          {preview && (
-                            <span className="truncate text-xs text-slate-500 block mt-0.5">
-                              {preview}
-                            </span>
-                          )}
                         </div>
                         <div className="flex shrink-0 items-center gap-2">
-                          {msgCount && (
-                            <span className="text-xs text-slate-600">{msgCount} сообщ.</span>
-                          )}
                           <span className="text-xs text-slate-500">
                             {relativeTime(doc.updated_at)}
                           </span>
@@ -509,11 +476,11 @@ export function DocumentsPage() {
 
       {/* Document Sheet */}
       <DocumentSheet
-        document={selectedDoc}
-        onClose={() => setSelectedDoc(null)}
+        documentId={selectedDocId}
+        onClose={() => setSelectedDocId(null)}
         onDelete={async (id) => {
           await supabase.from('documents').delete().eq('id', id)
-          setSelectedDoc(null)
+          setSelectedDocId(null)
           void fetchDocuments()
         }}
       />

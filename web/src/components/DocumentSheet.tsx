@@ -4,6 +4,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { SourceBadge } from '@/components/SourceBadge'
 import type { SourceKey } from '@/lib/sources'
+import { supabase } from '@/lib/supabase'
 
 export interface Document {
   id: string
@@ -318,16 +319,26 @@ function HighlightedText({ text, query }: { text: string; query: string }) {
 }
 
 interface DocumentSheetProps {
-  document: Document | null
+  documentId: string | null
   onClose: () => void
   onDelete?: (id: string) => void
   searchQuery?: string
 }
 
-export function DocumentSheet({ document: doc, onClose, onDelete, searchQuery }: DocumentSheetProps) {
+export function DocumentSheet({ documentId, onClose, onDelete, searchQuery }: DocumentSheetProps) {
   const panelRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [doc, setDoc] = useState<Document | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  // Fetch full document when documentId changes
+  useEffect(() => {
+    if (!documentId) { setDoc(null); return }
+    setLoading(true)
+    supabase.from('documents').select('*').eq('id', documentId).single()
+      .then(({ data }) => { setDoc(data as Document | null); setLoading(false) })
+  }, [documentId])
 
   // Auto-scroll to first search match
   useEffect(() => {
@@ -343,27 +354,27 @@ export function DocumentSheet({ document: doc, onClose, onDelete, searchQuery }:
 
   // Close on Escape
   useEffect(() => {
-    if (!doc) return
+    if (!documentId) return
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose()
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [doc, onClose])
+  }, [documentId, onClose])
 
   // Lock body scroll when open
   useEffect(() => {
-    if (doc) {
+    if (documentId) {
       globalThis.document.body.classList.add('overflow-hidden')
     }
     return () => {
       globalThis.document.body.classList.remove('overflow-hidden')
     }
-  }, [doc])
+  }, [documentId])
 
-  if (!doc) return null
+  if (!documentId) return null
 
-  const hasMetadata = doc.metadata && Object.keys(doc.metadata).length > 0
+  const hasMetadata = doc?.metadata && Object.keys(doc.metadata).length > 0
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
@@ -378,7 +389,24 @@ export function DocumentSheet({ document: doc, onClose, onDelete, searchQuery }:
         ref={panelRef}
         className="relative z-10 flex h-full w-full max-w-2xl flex-col bg-slate-900 shadow-2xl animate-in slide-in-from-right duration-300"
       >
-        {/* Header */}
+        {loading && (
+          <>
+            <div className="flex items-center justify-end border-b border-slate-800/40 px-6 py-4">
+              <button
+                onClick={onClose}
+                className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="flex flex-1 items-center justify-center">
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-600 border-t-blue-500" />
+            </div>
+          </>
+        )}
+
+        {/* Header + Content — only rendered once doc is loaded */}
+        {!loading && doc && (<>
         <div className="flex items-start gap-3 border-b border-slate-800/40 px-6 py-5">
           <div className="min-w-0 flex-1">
             <div className="mb-2 flex items-center gap-2">
@@ -491,6 +519,7 @@ export function DocumentSheet({ document: doc, onClose, onDelete, searchQuery }:
             </details>
           )}
         </div>
+        </>)}
       </div>
     </div>
   )

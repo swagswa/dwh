@@ -4,11 +4,23 @@ import { supabase } from '@/lib/supabase'
 import { sources, type SourceKey } from '@/lib/sources'
 import { SourceBadge } from '@/components/SourceBadge'
 import { EmptyState } from '@/components/EmptyState'
-import { DocumentSheet, type Document } from '@/components/DocumentSheet'
+import { DocumentSheet } from '@/components/DocumentSheet'
 import { cn } from '@/lib/utils'
 import { onDataChange } from '@/lib/events'
 
 type TabKey = 'all' | SourceKey
+
+// Slim type for search result rows — content included for snippets, no full metadata
+interface SearchResultItem {
+  id: string
+  source: SourceKey
+  source_id: string
+  title: string
+  content: string | null
+  created_at: string
+  updated_at: string
+  project_name?: string | null
+}
 
 const tabs: { key: TabKey; label: string }[] = [
   { key: 'all', label: 'Все' },
@@ -97,10 +109,10 @@ export function SearchPage() {
   const [searchText, setSearchText] = useState(initial.q)
   const [debouncedText, setDebouncedText] = useState(initial.q)
   const [activeTab, setActiveTab] = useState<TabKey>(initial.tab)
-  const [results, setResults] = useState<Document[]>([])
+  const [results, setResults] = useState<SearchResultItem[]>([])
   const [loading, setLoading] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
-  const [selectedDoc, setSelectedDoc] = useState<Document | null>(null)
+  const [selectedDocId, setSelectedDocId] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const abortRef = useRef<AbortController | null>(null)
   const [projects, setProjects] = useState<string[]>([])
@@ -152,7 +164,7 @@ export function SearchPage() {
 
     let query = supabase
       .from('documents')
-      .select('id, source, source_id, title, content, metadata, created_at, updated_at')
+      .select('id, source, source_id, title, content, created_at, updated_at, metadata->project_name')
       .order('updated_at', { ascending: false })
       .limit(50)
 
@@ -172,7 +184,7 @@ export function SearchPage() {
     if (controller.signal.aborted) return
 
     if (!error && data) {
-      setResults(data as Document[])
+      setResults(data as SearchResultItem[])
     } else {
       setResults([])
     }
@@ -304,7 +316,7 @@ export function SearchPage() {
               return (
                 <button
                   key={doc.id}
-                  onClick={() => setSelectedDoc(doc)}
+                  onClick={() => setSelectedDocId(doc.id)}
                   className="w-full cursor-pointer rounded-lg bg-slate-900/50 p-4 text-left transition-colors duration-150 hover:bg-slate-800/50"
                 >
                   <div className="flex items-center justify-between mb-1.5">
@@ -330,12 +342,12 @@ export function SearchPage() {
 
       {/* Document sheet */}
       <DocumentSheet
-        document={selectedDoc}
-        onClose={() => setSelectedDoc(null)}
+        documentId={selectedDocId}
+        onClose={() => setSelectedDocId(null)}
         searchQuery={debouncedText}
         onDelete={async (id) => {
           await supabase.from('documents').delete().eq('id', id)
-          setSelectedDoc(null)
+          setSelectedDocId(null)
           setResults((prev) => prev.filter((d) => d.id !== id))
         }}
       />
