@@ -256,21 +256,23 @@ syncBtn.addEventListener('click', async () => {
         setStatus(`Найдено ${projects.length} проектов, загружаю чаты...`)
       }
 
-      // Fetch conversations from all projects
+      // Fetch conversations from all projects in parallel
       const allConvs = []
-      for (const project of projects) {
-        setStatus(`Проект "${project.name}": загружаю чаты...`)
-        const projectConvs = await fetchProjectConversations(chatgptToken, project)
-        allConvs.push(...projectConvs)
-        setStatus(`Проект "${project.name}": ${projectConvs.length} чатов`)
-        await delay(500)
+      if (projects.length > 0) {
+        const projectResults = await Promise.allSettled(
+          projects.map(p => fetchProjectConversations(chatgptToken, p))
+        )
+        for (const r of projectResults) {
+          if (r.status === 'fulfilled') allConvs.push(...r.value)
+        }
+        setStatus(`Из проектов: ${allConvs.length} чатов`)
       }
 
       // Load regular (non-project) conversations
       setStatus('Загружаю обычные чаты...')
       let offset = 0
       while (true) {
-        const res = await fetch(`https://chatgpt.com/backend-api/conversations?offset=${offset}&limit=28`, {
+        const res = await fetch(`https://chatgpt.com/backend-api/conversations?offset=${offset}&limit=100&order=updated`, {
           headers: { Authorization: `Bearer ${chatgptToken}` },
         })
         if (!res.ok) throw new Error(`ChatGPT API error: ${res.status}`)
@@ -280,13 +282,13 @@ syncBtn.addEventListener('click', async () => {
         setStatus(`Загружено: ${allConvs.length} чатов...`)
 
         const limit = parseInt(chatLimitInput.value) || parseInt(chatLimitSlider.value) || 500
-        if (items.length < 28) break
+        if (items.length < 100) break
         if (allConvs.length >= limit) {
           allConvs.splice(limit)
           break
         }
         offset += 28
-        await delay(1000)
+        await delay(300)
       }
 
       // Check which need syncing
@@ -330,11 +332,11 @@ syncBtn.addEventListener('click', async () => {
 
     const total = neededConvs.length
     const remaining = total - startIndex
-    setStatus(`Синхронизация: ${remaining} чатов (×3 параллельно)`)
+    setStatus(`Синхронизация: ${remaining} чатов (×5 параллельно)`)
     setProgress(startIndex, total)
 
-    // Fetch conversations in parallel groups of 3, then send in batches of 10
-    const PARALLEL = 3
+    // Fetch conversations in parallel groups of 5, send in batches of 25
+    const PARALLEL = 5
     let batch = []
 
     for (let i = startIndex; i < total; i += PARALLEL) {
@@ -363,8 +365,8 @@ syncBtn.addEventListener('click', async () => {
 
       const progressIndex = groupEnd
 
-      // Send batch every 10 or at the end
-      if (batch.length >= 10 || progressIndex >= total) {
+      // Send batch every 25 or at the end
+      if (batch.length >= 25 || progressIndex >= total) {
         const { data: { session: freshSession } } = await sb.auth.getSession()
         const freshJwt = freshSession?.access_token || jwt
 
@@ -390,7 +392,7 @@ syncBtn.addEventListener('click', async () => {
       await saveSyncState({ neededConvs, currentIndex: progressIndex, synced })
       setProgress(progressIndex, total, groupTitles)
       setStatus(`Загрузка чатов...`)
-      await delay(1500)  // 1.5 sec between groups of 3
+      await delay(600)  // 600ms between groups of 5
     }
 
     setStatus(`Готово! Синхронизировано ${synced} чатов.`, 'success')
