@@ -127,12 +127,13 @@ export function SearchPage() {
     const fetchProjects = async () => {
       const { data } = await supabase
         .from('documents')
-        .select('metadata')
+        .select('metadata->project_name')
         .eq('source', 'chatgpt')
+        .neq('metadata->>project_name', 'null')
       const names = [...new Set(
         (data || [])
-          .map((d: { metadata: Record<string, unknown> | null }) => d.metadata?.project_name as string | undefined)
-          .filter(Boolean) as string[]
+          .map((d: any) => d.project_name as string | undefined)
+          .filter((n): n is string => !!n && n !== 'null')
       )].sort()
       setProjects(names)
     }
