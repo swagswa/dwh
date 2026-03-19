@@ -351,8 +351,12 @@ syncBtn.addEventListener('click', async () => {
         )
       )
 
-      for (const result of results) {
+      for (let j = 0; j < results.length; j++) {
+        const result = results[j]
         if (result.status === 'fulfilled' && result.value) {
+          // Attach project info from the list item to the full conversation
+          result.value._project_name = group[j]._project_name || null
+          result.value._project_id = group[j]._project_id || null
           batch.push(result.value)
         }
       }
