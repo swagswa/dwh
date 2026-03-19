@@ -129,7 +129,7 @@ export function SearchPage() {
         .from('documents')
         .select('metadata')
         .eq('source', 'chatgpt')
-        .not('metadata->project_name', 'is', null)
+        // project_name filtered client-side below
       const names = [...new Set(
         (data || [])
           .map((d: { metadata: Record<string, unknown> | null }) => d.metadata?.project_name as string | undefined)
