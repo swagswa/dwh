@@ -103,6 +103,8 @@ export function SearchPage() {
   const [selectedDoc, setSelectedDoc] = useState<Document | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const abortRef = useRef<AbortController | null>(null)
+  const [projects, setProjects] = useState<string[]>([])
+  const [activeProject, setActiveProject] = useState<string>('all')
 
   // Debounce
   useEffect(() => {
@@ -115,8 +117,31 @@ export function SearchPage() {
     syncSearchParams(debouncedText, activeTab)
   }, [debouncedText, activeTab])
 
+  // Fetch unique project names when ChatGPT tab is active
+  useEffect(() => {
+    if (activeTab !== 'chatgpt') {
+      setProjects([])
+      setActiveProject('all')
+      return
+    }
+    const fetchProjects = async () => {
+      const { data } = await supabase
+        .from('documents')
+        .select('metadata')
+        .eq('source', 'chatgpt')
+        .not('metadata->project_name', 'is', null)
+      const names = [...new Set(
+        (data || [])
+          .map((d: { metadata: Record<string, unknown> | null }) => d.metadata?.project_name as string | undefined)
+          .filter(Boolean) as string[]
+      )].sort()
+      setProjects(names)
+    }
+    void fetchProjects()
+  }, [activeTab])
+
   // Fetch
-  const fetchResults = useCallback(async (text: string, source: TabKey) => {
+  const fetchResults = useCallback(async (text: string, source: TabKey, project: string) => {
     // Cancel previous request
     abortRef.current?.abort()
     const controller = new AbortController()
@@ -136,6 +161,9 @@ export function SearchPage() {
     }
     if (source !== 'all') {
       query = query.eq('source', source)
+    }
+    if (source === 'chatgpt' && project !== 'all') {
+      query = query.eq('metadata->>project_name', project)
     }
 
     const { data, error } = await query
@@ -159,21 +187,21 @@ export function SearchPage() {
     setLoading(false)
   }
 
-  // Trigger search on debounced text or tab change
+  // Trigger search on debounced text, tab, or project change
   useEffect(() => {
     if (!debouncedText && activeTab === 'all') return
     // eslint-disable-next-line react-hooks/set-state-in-effect -- fetchResults is async data fetching, setState in callback is intentional
-    fetchResults(debouncedText, activeTab)
-  }, [debouncedText, activeTab, fetchResults])
+    fetchResults(debouncedText, activeTab, activeProject)
+  }, [debouncedText, activeTab, activeProject, fetchResults])
 
   // Refresh results when data changes externally (after sync/upload)
   useEffect(() => {
     return onDataChange(() => {
       if (debouncedText || activeTab !== 'all') {
-        void fetchResults(debouncedText, activeTab)
+        void fetchResults(debouncedText, activeTab, activeProject)
       }
     })
-  }, [debouncedText, activeTab, fetchResults])
+  }, [debouncedText, activeTab, activeProject, fetchResults])
 
   // Auto-focus input
   useEffect(() => {
@@ -213,6 +241,35 @@ export function SearchPage() {
             </button>
           ))}
         </div>
+
+        {/* Project sub-filter (ChatGPT only) */}
+        {activeTab === 'chatgpt' && projects.length > 0 && (
+          <div className="mx-auto mt-3 flex w-full max-w-2xl flex-wrap gap-1.5">
+            <button
+              onClick={() => setActiveProject('all')}
+              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                activeProject === 'all'
+                  ? 'bg-emerald-500/20 text-emerald-400'
+                  : 'text-slate-400 hover:bg-slate-800 hover:text-slate-300'
+              }`}
+            >
+              Все
+            </button>
+            {projects.map((p) => (
+              <button
+                key={p}
+                onClick={() => setActiveProject(p)}
+                className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                  activeProject === p
+                    ? 'bg-emerald-500/20 text-emerald-400'
+                    : 'text-slate-400 hover:bg-slate-800 hover:text-slate-300'
+                }`}
+              >
+                {p}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Results area */}
         <div className="mt-8 space-y-3">

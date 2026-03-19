@@ -116,11 +116,41 @@ export function DocumentsPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [deleting, setDeleting] = useState(false)
   const [editMode, setEditMode] = useState(false)
+  const [projects, setProjects] = useState<string[]>([])
+  const [activeProject, setActiveProject] = useState<string>('all')
 
   // Sync state to URL
   useEffect(() => {
     syncDocParams(searchQuery, activeTab, page)
   }, [searchQuery, activeTab, page])
+
+  // Fetch unique project names when ChatGPT tab is active
+  useEffect(() => {
+    if (activeTab !== 'chatgpt') {
+      setProjects([])
+      setActiveProject('all')
+      return
+    }
+    const fetchProjects = async () => {
+      const { data } = await supabase
+        .from('documents')
+        .select('metadata')
+        .eq('source', 'chatgpt')
+        .not('metadata->project_name', 'is', null)
+      const names = [...new Set(
+        (data || [])
+          .map((d: { metadata: Record<string, unknown> | null }) => d.metadata?.project_name as string | undefined)
+          .filter(Boolean) as string[]
+      )].sort()
+      setProjects(names)
+    }
+    void fetchProjects()
+  }, [activeTab])
+
+  // Reset page when active project changes
+  useEffect(() => {
+    setPage(0)
+  }, [activeProject])
 
   const fetchDocuments = useCallback(async () => {
     setLoading(true)
@@ -133,6 +163,9 @@ export function DocumentsPage() {
 
       if (activeTab !== 'all') {
         query = query.eq('source', activeTab)
+      }
+      if (activeTab === 'chatgpt' && activeProject !== 'all') {
+        query = query.eq('metadata->>project_name', activeProject)
       }
       if (searchQuery.trim()) {
         const q = searchQuery.trim()
@@ -150,7 +183,7 @@ export function DocumentsPage() {
     } finally {
       setLoading(false)
     }
-  }, [activeTab, searchQuery, page])
+  }, [activeTab, activeProject, searchQuery, page])
 
   useEffect(() => {
     void fetchDocuments()
@@ -165,7 +198,7 @@ export function DocumentsPage() {
   // Reset page when filter changes
   useEffect(() => {
     setPage(0)
-  }, [activeTab, searchQuery])
+  }, [activeTab, searchQuery, activeProject])
 
   const toggleSelect = (id: string) => {
     setSelected((prev) => {
@@ -240,6 +273,35 @@ export function DocumentsPage() {
           )
         })}
       </div>
+
+      {/* Project sub-filter (ChatGPT only) */}
+      {activeTab === 'chatgpt' && projects.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mt-2">
+          <button
+            onClick={() => setActiveProject('all')}
+            className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+              activeProject === 'all'
+                ? 'bg-emerald-500/20 text-emerald-400'
+                : 'text-slate-400 hover:bg-slate-800 hover:text-slate-300'
+            }`}
+          >
+            Все
+          </button>
+          {projects.map((p) => (
+            <button
+              key={p}
+              onClick={() => setActiveProject(p)}
+              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                activeProject === p
+                  ? 'bg-emerald-500/20 text-emerald-400'
+                  : 'text-slate-400 hover:bg-slate-800 hover:text-slate-300'
+              }`}
+            >
+              {p}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Search + actions row */}
       <div className="flex items-center gap-3">
@@ -376,6 +438,11 @@ export function DocumentsPage() {
                     )}
                     <td className="px-4 py-3 w-32">
                       <SourceBadge source={doc.source} />
+                      {doc.source === 'chatgpt' && (doc.metadata as any)?.project_name && (
+                        <span className="ml-1.5 rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] text-emerald-400">
+                          {(doc.metadata as any).project_name}
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-baseline gap-3">

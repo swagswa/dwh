@@ -381,8 +381,13 @@ export function DocumentSheet({ document: doc, onClose, onDelete, searchQuery }:
         {/* Header */}
         <div className="flex items-start gap-3 border-b border-slate-800/40 px-6 py-5">
           <div className="min-w-0 flex-1">
-            <div className="mb-2">
+            <div className="mb-2 flex items-center gap-2">
               <SourceBadge source={doc.source} />
+              {doc.source === 'chatgpt' && doc.metadata && (doc.metadata as Record<string, unknown>).project_name ? (
+                <span className="rounded bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-400">
+                  {String((doc.metadata as Record<string, unknown>).project_name)}
+                </span>
+              ) : null}
             </div>
             <h2 className="text-lg font-semibold leading-snug text-slate-100">
               {doc.title}

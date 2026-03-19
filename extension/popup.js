@@ -82,6 +82,55 @@ async function clearSyncState() {
   await chrome.storage.local.remove(SYNC_STATE_KEY)
 }
 
+// --- Project helpers ---
+async function fetchProjects(token) {
+  const projects = []
+  let cursor = null
+  while (true) {
+    const url = 'https://chatgpt.com/backend-api/gizmos/snorlax/sidebar' + (cursor ? `?cursor=${cursor}` : '')
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!res.ok) break // Projects not available (free tier) — skip silently
+    const data = await res.json()
+    const items = data.items || []
+    for (const item of items) {
+      if (item.gizmo?.id) {
+        projects.push({
+          id: item.gizmo.id,
+          name: item.gizmo.display?.name || 'Unnamed Project',
+        })
+      }
+    }
+    cursor = data.cursor
+    if (!cursor) break
+  }
+  return projects
+}
+
+async function fetchProjectConversations(token, project) {
+  const convs = []
+  let cursor = '0'
+  while (cursor !== null) {
+    const url = `https://chatgpt.com/backend-api/gizmos/${project.id}/conversations?cursor=${cursor}`
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!res.ok) break
+    const data = await res.json()
+    const items = data.items || []
+    for (const item of items) {
+      item._project_name = project.name
+      item._project_id = project.id
+      convs.push(item)
+    }
+    cursor = data.cursor ?? null
+    if (cursor === undefined || cursor === null) break
+    await delay(500)
+  }
+  return convs
+}
+
 // --- Init ---
 async function init() {
   // Debug: check what's in storage
@@ -200,9 +249,25 @@ syncBtn.addEventListener('click', async () => {
       // --- FRESH sync ---
       chatgptToken = await getChatGPTToken()
 
-      // Load conversation list (with limit)
-      setStatus('Загружаю список чатов...')
+      // Load projects first
+      setStatus('Загружаю проекты...')
+      const projects = await fetchProjects(chatgptToken)
+      if (projects.length > 0) {
+        setStatus(`Найдено ${projects.length} проектов, загружаю чаты...`)
+      }
+
+      // Fetch conversations from all projects
       const allConvs = []
+      for (const project of projects) {
+        setStatus(`Проект "${project.name}": загружаю чаты...`)
+        const projectConvs = await fetchProjectConversations(chatgptToken, project)
+        allConvs.push(...projectConvs)
+        setStatus(`Проект "${project.name}": ${projectConvs.length} чатов`)
+        await delay(500)
+      }
+
+      // Load regular (non-project) conversations
+      setStatus('Загружаю обычные чаты...')
       let offset = 0
       while (true) {
         const res = await fetch(`https://chatgpt.com/backend-api/conversations?offset=${offset}&limit=28`, {
@@ -212,14 +277,12 @@ syncBtn.addEventListener('click', async () => {
         const data = await res.json()
         const items = data.items || []
         allConvs.push(...items)
-        setStatus(`Загружен список: ${allConvs.length} чатов...`)
+        setStatus(`Загружено: ${allConvs.length} чатов...`)
 
-        // Stop if we hit the limit or no more items
         const limit = parseInt(chatLimitInput.value) || parseInt(chatLimitSlider.value) || 500
         if (items.length < 28) break
         if (allConvs.length >= limit) {
           allConvs.splice(limit)
-          setStatus(`Берём первые ${limit} чатов`)
           break
         }
         offset += 28

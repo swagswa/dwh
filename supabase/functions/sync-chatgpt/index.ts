@@ -26,6 +26,9 @@ Deno.serve(async (req) => {
     const convId = conv.conversation_id || conv.id
     if (!convId) continue
 
+    const projectName = conv._project_name || null
+    const projectId = conv._project_id || conv.gizmo_id || null
+
     const messages = Object.values(conv.mapping || {})
       .filter((n: any) => n.message?.content?.parts?.length)
       .map((n: any) => ({
@@ -47,7 +50,13 @@ Deno.serve(async (req) => {
       title: conv.title || 'Untitled',
       content,
       content_hash: contentHash,
-      metadata: { chat_id: convId, message_count: messages.length, messages },
+      metadata: {
+        chat_id: convId,
+        message_count: messages.length,
+        messages,
+        project_name: projectName,
+        project_id: projectId,
+      },
       updated_at: new Date().toISOString(),
     })
   }
