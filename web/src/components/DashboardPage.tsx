@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { RefreshCw, Database, Layers, Clock } from 'lucide-react'
 import { sources, type SourceKey } from '@/lib/sources'
 import { edgeFetch } from '@/lib/api'
+import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
 import { emitDataChange, onDataChange } from '@/lib/events'
 
@@ -220,17 +221,40 @@ export function DashboardPage() {
 
   const fetchStats = useCallback(async () => {
     try {
-      const res = await edgeFetch('sync-status')
-      if (res.ok) {
-        const data = await res.json()
-        const parsed: SourceStats[] = ALL_SOURCES.map((source) => ({
-          source,
-          count: data[source]?.count ?? 0,
-          lastSync: data[source]?.lastSync?.finished_at ?? data[source]?.lastSync?.started_at ?? null,
-        }))
-        setStats(parsed)
-        sessionStorage.setItem('dwh-stats', JSON.stringify(parsed))
+      // Both queries run in parallel — no edge function round-trip
+      const [docsRes, runsRes] = await Promise.all([
+        supabase.from('documents').select('source'),
+        supabase
+          .from('sync_runs')
+          .select('source, finished_at, status, items_synced')
+          .order('finished_at', { ascending: false }),
+      ])
+
+      const docs = docsRes.data || []
+      const runs = runsRes.data || []
+
+      // Count documents per source
+      const counts: Record<string, number> = {}
+      for (const d of docs) {
+        counts[d.source] = (counts[d.source] || 0) + 1
       }
+
+      // Get last sync run per source (already ordered by finished_at desc)
+      const lastSyncs: Record<string, string | null> = {}
+      for (const r of runs) {
+        if (!(r.source in lastSyncs)) {
+          lastSyncs[r.source] = r.finished_at ?? null
+        }
+      }
+
+      const parsed: SourceStats[] = ALL_SOURCES.map((source) => ({
+        source,
+        count: counts[source] || 0,
+        lastSync: lastSyncs[source] ?? null,
+      }))
+
+      setStats(parsed)
+      sessionStorage.setItem('dwh-stats', JSON.stringify(parsed))
     } catch {
       // silently fail — stats will show zeros
     } finally {

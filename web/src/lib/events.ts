@@ -7,5 +7,6 @@ export function onDataChange(fn: Listener): () => void {
 }
 
 export function emitDataChange() {
+  sessionStorage.removeItem('dwh-stats')
   listeners.forEach((fn) => fn())
 }
