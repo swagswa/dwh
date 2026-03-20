@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import { edgeFetch } from '@/lib/api'
+import { emitDataChange } from '@/lib/events'
 import { LoginPage } from '@/components/LoginPage'
 import { AppLayout } from '@/components/AppLayout'
 import { DashboardPage } from '@/components/DashboardPage'
@@ -55,6 +56,7 @@ export default function App() {
             method: 'POST',
             body: JSON.stringify({ code }),
           })
+          emitDataChange()
         } catch (err) {
           console.error('Gmail OAuth exchange failed:', err)
         }
