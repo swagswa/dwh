@@ -27,3 +27,49 @@ export async function edgeFetch(fn: string, options?: RequestInit) {
     },
   })
 }
+
+const CHUNK_SIZE = 1_500_000 // ~1.5MB per chunk (safe under 2MB limit with JSON overhead)
+
+export async function uploadDocument(
+  parsed: { text: string; format: string; pageCount?: number },
+  filename: string,
+  onChunkProgress?: (chunk: number, totalChunks: number) => void,
+): Promise<void> {
+  const { text, format, pageCount } = parsed
+
+  if (text.length <= CHUNK_SIZE) {
+    // Small file — single request
+    onChunkProgress?.(0, 1)
+    const res = await edgeFetch('sync-documents', {
+      method: 'POST',
+      body: JSON.stringify({ text, filename, format, pageCount }),
+    })
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error(body.error || `Ошибка: ${res.status}`)
+    }
+    return
+  }
+
+  // Large file — chunked upload
+  const totalChunks = Math.ceil(text.length / CHUNK_SIZE)
+  for (let i = 0; i < totalChunks; i++) {
+    onChunkProgress?.(i, totalChunks)
+    const chunk = text.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE)
+    const res = await edgeFetch('sync-documents', {
+      method: 'POST',
+      body: JSON.stringify({
+        text: chunk,
+        filename,
+        format,
+        pageCount,
+        chunk: i,
+        totalChunks,
+      }),
+    })
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error(body.error || `Ошибка загрузки части ${i + 1}/${totalChunks}: ${res.status}`)
+    }
+  }
+}

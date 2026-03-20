@@ -10,11 +10,70 @@ Deno.serve(async (req) => {
   if (auth.error) return errorResponse(auth.error, 401)
 
   const supabase = getServiceClient()
-  const { text, filename, format, pageCount } = await req.json()
+  const { text, filename, format, pageCount, chunk, totalChunks } = await req.json()
 
   if (!text || !filename) return errorResponse('text and filename required')
 
   const ext = filename.split('.').pop()?.toLowerCase() || ''
+
+  // Chunked upload path
+  if (typeof chunk === 'number' && totalChunks > 1) {
+    const sourceId = `chunked-${filename}`
+
+    if (chunk === 0) {
+      // First chunk — create/upsert document
+      await supabase.from('documents').upsert({
+        user_id: auth.user!.id,
+        source: 'documents',
+        source_id: sourceId,
+        title: filename,
+        content: text,
+        metadata: { filename, format: format || ext, pageCount, chunked: true, chunksReceived: 1, totalChunks },
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'user_id,source,source_id' })
+    } else {
+      // Subsequent chunks — read current content and append
+      const { data: existing } = await supabase
+        .from('documents')
+        .select('content, metadata')
+        .eq('user_id', auth.user!.id)
+        .eq('source', 'documents')
+        .eq('source_id', sourceId)
+        .single()
+
+      if (!existing) return errorResponse('First chunk not found', 404)
+
+      const newContent = (existing.content || '') + text
+      const newMeta = { ...existing.metadata, chunksReceived: (existing.metadata?.chunksReceived || 1) + 1 }
+
+      // Remove chunked bookkeeping fields on last chunk
+      if (chunk === totalChunks - 1) {
+        delete newMeta.chunked
+        delete newMeta.chunksReceived
+        delete newMeta.totalChunks
+      }
+
+      await supabase
+        .from('documents')
+        .update({ content: newContent, metadata: newMeta, updated_at: new Date().toISOString() })
+        .eq('user_id', auth.user!.id)
+        .eq('source', 'documents')
+        .eq('source_id', sourceId)
+    }
+
+    // Only log sync_run on last chunk
+    if (chunk === totalChunks - 1) {
+      await supabase.from('sync_runs').insert({
+        user_id: auth.user!.id,
+        source: 'documents',
+        status: 'completed',
+        finished_at: new Date().toISOString(),
+        items_synced: 1,
+      })
+    }
+
+    return jsonResponse({ synced: chunk === totalChunks - 1 ? 1 : 0, chunk, totalChunks, format: format || ext })
+  }
 
   // Telegram JSON detection — store as single conversation
   if (format === 'json') {

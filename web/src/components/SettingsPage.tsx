@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Mail, Globe, Upload, User, X, Check, AlertCircle, FileUp, Loader2 } from 'lucide-react'
+import { Mail, Globe, Upload, User, X, Check, AlertCircle, FileUp, Loader2, Clock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 import { edgeFetch } from '@/lib/api'
-import { parseFile } from '@/lib/file-parser'
-import { emitDataChange } from '@/lib/events'
+import { useFileUpload } from '@/hooks/useFileUpload'
 
 /* -------------------------------------------------------------------------- */
 /*  Shared card wrapper                                                        */
@@ -221,61 +220,18 @@ function SitesSection() {
 /*  File Upload section                                                        */
 /* -------------------------------------------------------------------------- */
 
-interface UploadedFile {
-  name: string
-  status: 'uploading' | 'success' | 'error'
-  error?: string
-}
-
 const ACCEPTED_TYPES = '.json,.txt,.md,.csv,.pdf,.docx,.xlsx'
 const MAX_FILES = 50
 
 function FileUploadSection() {
   const [dragOver, setDragOver] = useState(false)
-  const [files, setFiles] = useState<UploadedFile[]>([])
   const inputRef = useRef<HTMLInputElement>(null)
-
-  const uploadFile = async (file: File) => {
-    const entry: UploadedFile = { name: file.name, status: 'uploading' }
-    setFiles((prev) => [...prev, entry])
-
-    try {
-      const parsed = await parseFile(file)
-
-      const res = await edgeFetch('sync-documents', {
-        method: 'POST',
-        body: JSON.stringify({
-          text: parsed.text,
-          filename: file.name,
-          format: parsed.format,
-          pageCount: parsed.pageCount,
-        }),
-      })
-
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}))
-        throw new Error(body.error || `Ошибка обработки: ${res.status}`)
-      }
-
-      setFiles((prev) =>
-        prev.map((f) => (f.name === file.name ? { ...f, status: 'success' as const } : f)),
-      )
-      emitDataChange()
-    } catch (err) {
-      setFiles((prev) =>
-        prev.map((f) =>
-          f.name === file.name
-            ? { ...f, status: 'error' as const, error: String(err) }
-            : f,
-        ),
-      )
-    }
-  }
+  const { files, uploadFiles } = useFileUpload()
 
   const handleFiles = (fileList: FileList | null) => {
     if (!fileList) return
     const selected = Array.from(fileList).slice(0, MAX_FILES)
-    selected.forEach((f) => void uploadFile(f))
+    uploadFiles(selected)
   }
 
   const handleDrop = (e: React.DragEvent) => {
@@ -328,7 +284,10 @@ function FileUploadSection() {
                 key={`${f.name}-${i}`}
                 className="flex items-center gap-2.5 rounded-lg bg-slate-800/50 px-3 py-2"
               >
-                {f.status === 'uploading' && (
+                {f.status === 'queued' && (
+                  <Clock className="h-3.5 w-3.5 shrink-0 text-slate-500" />
+                )}
+                {(f.status === 'parsing' || f.status === 'uploading') && (
                   <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-blue-400" />
                 )}
                 {f.status === 'success' && (
@@ -337,14 +296,19 @@ function FileUploadSection() {
                 {f.status === 'error' && (
                   <AlertCircle className="h-3.5 w-3.5 shrink-0 text-red-400" />
                 )}
-                <span
-                  className={cn(
-                    'truncate text-sm',
-                    f.status === 'error' ? 'text-red-300' : 'text-slate-300',
+                <div className="min-w-0 flex-1">
+                  <span
+                    className={cn(
+                      'block truncate text-sm',
+                      f.status === 'error' ? 'text-red-300' : 'text-slate-300',
+                    )}
+                  >
+                    {f.name}
+                  </span>
+                  {f.progress && (
+                    <span className="text-[10px] text-slate-500">{f.progress}</span>
                   )}
-                >
-                  {f.name}
-                </span>
+                </div>
               </div>
             ))}
           </div>

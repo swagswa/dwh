@@ -5,7 +5,7 @@ import * as XLSX from 'xlsx'
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker
 
-const MAX_FILE_SIZE = 20 * 1024 * 1024 // 20MB
+const MAX_FILE_SIZE = 100 * 1024 * 1024 // 100MB
 
 export interface ParseResult {
   text: string
@@ -13,16 +13,18 @@ export interface ParseResult {
   pageCount?: number
 }
 
-export async function parseFile(file: File): Promise<ParseResult> {
+type ProgressCallback = (current: number, total: number) => void
+
+export async function parseFile(file: File, onProgress?: ProgressCallback): Promise<ParseResult> {
   if (file.size > MAX_FILE_SIZE) {
-    throw new Error(`Файл слишком большой (макс. 20MB)`)
+    throw new Error(`Файл слишком большой (макс. 100MB)`)
   }
 
   const ext = file.name.split('.').pop()?.toLowerCase() || ''
 
   switch (ext) {
     case 'pdf':
-      return parsePdf(file)
+      return parsePdf(file, onProgress)
     case 'docx':
       return parseDocx(file)
     case 'xlsx':
@@ -38,7 +40,7 @@ export async function parseFile(file: File): Promise<ParseResult> {
   }
 }
 
-async function parsePdf(file: File): Promise<ParseResult> {
+async function parsePdf(file: File, onProgress?: ProgressCallback): Promise<ParseResult> {
   const buffer = await file.arrayBuffer()
   const pdf = await pdfjsLib.getDocument({ data: buffer }).promise
   const pages: string[] = []
@@ -50,6 +52,7 @@ async function parsePdf(file: File): Promise<ParseResult> {
       .map((item) => ('str' in item ? item.str : ''))
       .join(' ')
     pages.push(text)
+    onProgress?.(i, pdf.numPages)
   }
 
   return {
