@@ -110,16 +110,16 @@ export function DocumentsPage() {
       return
     }
     const fetchProjects = async () => {
+      // Use ->> to get text (not JSON) so nulls are real nulls, not "null" strings
       const { data } = await supabase
         .from('documents')
-        .select('metadata->project_name')
+        .select('metadata->>project_name')
         .eq('source', 'chatgpt')
-        .neq('metadata->>project_name', 'null')
-      const names = [...new Set(
-        (data || [])
-          .map((d: any) => d.project_name as string | undefined)
-          .filter((n): n is string => !!n && n !== 'null')
-      )].sort()
+      const allNames = (data || []).map((d: any) => d.project_name as string | null)
+      const named = allNames.filter((n): n is string => !!n && n !== 'null')
+      const hasNoProject = allNames.length > named.length
+      const names = [...new Set(named)].sort()
+      if (hasNoProject) names.unshift('__no_project__')
       setProjects(names)
     }
     void fetchProjects()
@@ -143,7 +143,11 @@ export function DocumentsPage() {
         query = query.eq('source', activeTab)
       }
       if (activeTab === 'chatgpt' && activeProject !== 'all') {
-        query = query.eq('metadata->>project_name', activeProject)
+        if (activeProject === '__no_project__') {
+          query = query.or('metadata->>project_name.is.null,metadata->>project_name.eq.')
+        } else {
+          query = query.eq('metadata->>project_name', activeProject)
+        }
       }
       if (searchQuery.trim()) {
         const q = searchQuery.trim()
@@ -275,7 +279,7 @@ export function DocumentsPage() {
                   : 'text-slate-400 hover:bg-slate-800 hover:text-slate-300'
               }`}
             >
-              {p}
+              {p === '__no_project__' ? 'Без проекта' : p}
             </button>
           ))}
         </div>
