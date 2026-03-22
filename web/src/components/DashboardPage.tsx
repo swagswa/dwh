@@ -221,22 +221,26 @@ export function DashboardPage() {
 
   const fetchStats = useCallback(async () => {
     try {
-      // Both queries run in parallel — no edge function round-trip
-      const [docsRes, runsRes] = await Promise.all([
-        supabase.from('documents').select('source'),
+      // Count per source + last sync — all in parallel
+      const [countResults, runsRes] = await Promise.all([
+        Promise.all(
+          ALL_SOURCES.map((source) =>
+            supabase.from('documents').select('*', { count: 'exact', head: true }).eq('source', source)
+              .then((r) => ({ source, count: r.count ?? 0 }))
+          )
+        ),
         supabase
           .from('sync_runs')
           .select('source, finished_at, status, items_synced')
           .order('finished_at', { ascending: false }),
       ])
 
-      const docs = docsRes.data || []
       const runs = runsRes.data || []
 
       // Count documents per source
       const counts: Record<string, number> = {}
-      for (const d of docs) {
-        counts[d.source] = (counts[d.source] || 0) + 1
+      for (const r of countResults) {
+        counts[r.source] = r.count
       }
 
       // Get last sync run per source (already ordered by finished_at desc)
